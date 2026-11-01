@@ -1,0 +1,20 @@
+﻿import { chromium } from 'playwright-core';
+
+const browser = await chromium.connectOverCDP('http://127.0.0.1:9222');
+const pages = browser.contexts().flatMap((context) => context.pages());
+const page = pages.find((candidate) => candidate.url().includes('8788')) ?? pages[0];
+if (!page) throw new Error('No Electron page found');
+console.log('URL', page.url());
+await page.evaluate(() => localStorage.setItem('lienzo:user-name', 'Ismael'));
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForSelector('.dashboard', { timeout: 30000 });
+await page.waitForTimeout(1800);
+console.log('DESKTOP', await page.evaluate(() => window.lienzoDesktop));
+await page.screenshot({ path: 'docs/screenshots/desktop-dashboard.png' });
+await page.getByRole('button', { name: /Abrir tablero/i }).first().click();
+await page.waitForSelector('.board-shell');
+await page.waitForTimeout(4500);
+await page.screenshot({ path: 'docs/screenshots/desktop-board.png' });
+console.log('TITLE', await page.title());
+console.log('PRESENCE', await page.locator('.presence').getAttribute('title'));
+process.exit(0);
