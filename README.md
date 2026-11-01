@@ -1,12 +1,12 @@
-# Lienzo (alpha)
+# LIENZO xD
 
 **Pizarra visual colaborativa local-first para web, escritorio y móvil.** Sin cuentas, sin nube y sin fricción: tus tableros viven en tu dispositivo y se comparten en tu red local.
 
-Repositorio: <https://github.com/ismael567-wq/lienzo> · Releases: <https://github.com/ismael567-wq/lienzo/releases>
+Repositorio: <https://github.com/ismael567-wq/LIENZO-xD> · Releases: <https://github.com/ismael567-wq/LIENZO-xD/releases>
 
 > **Versión alpha `0.1.0-alpha.1`.** Es una versión para probar y dar feedback, no para producción. El instalador de Windows no está firmado; SmartScreen puede pedir confirmación. Lee la [guía de uso](docs/GUIA-USO.md) y los [límites conocidos](docs/ARQUITECTURA.md#11-límites-conocidos).
 
-![Dashboard de Lienzo](docs/screenshots/dashboard.png)
+![LIENZO xD — captura principal](docs/screenshots/portada.png)
 
 Lienzo es una alternativa deliberadamente contenida a Miro: recupera el gesto de pensar en un lienzo infinito, pero elimina la dependencia de un SaaS, el registro y la facturación por asiento. Está construido desde cero con TypeScript, React y Canvas 2D.
 

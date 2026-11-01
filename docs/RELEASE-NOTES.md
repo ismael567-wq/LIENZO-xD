@@ -57,6 +57,6 @@ Guía completa: [`docs/GUIA-USO.md`](docs/GUIA-USO.md).
 - React 19 + TypeScript + Canvas 2D.
 - Vite 8, Zustand, IndexedDB, Node.js + WebSocket, Electron, Capacitor.
 - Build Windows con Electron Builder (NSIS + portable).
-- Código y documentación: <https://github.com/ismael567-wq/lienzo>
+- Código y documentación: <https://github.com/ismael567-wq/LIENZO-xD>
 
 Hecho para pensar en voz alta, sin pedir permiso a la nube.

@@ -5,6 +5,11 @@
   "description": "Lienzo — pizarra visual colaborativa local-first para web, escritorio y móvil.",
   "author": "Lienzo",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ismael567-wq/LIENZO-xD.git"
+  },
+  "homepage": "https://github.com/ismael567-wq/LIENZO-xD",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
