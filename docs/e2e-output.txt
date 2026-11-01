@@ -1,0 +1,15 @@
+✓ tablero inicial 21 elementos
+✓ nota creada y guardada
+✓ deshacer
+✓ rehacer
+✓ forma creada
+✓ comentario creado
+✓ presentación
+✓ enlace de sala http://192.168.1.7:8787/#/b/6f-iYv-SW1kz
+✓ PNG exportado bienvenido-a-lienzo.png 464040 bytes
+✓ PWA { registration: true, manifest: '/manifest.webmanifest' }
+✓ móvil abrió el tablero compartido
+✓ tiempo real entre escritorio y móvil 2 personas en la sala
+✓ servidor de sala con ambos cambios
+ERRORS none
+E2E OK
