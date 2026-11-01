@@ -1,0 +1,44 @@
+{
+  "appId": "app.lienzo.desktop",
+  "productName": "Lienzo",
+  "directories": {
+    "output": "release",
+    "buildResources": "build"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/**/*",
+    "server/**/*",
+    "server-dist/**/*",
+    "package.json"
+  ],
+  "asar": true,
+  "asarUnpack": [
+    "server/**/*",
+    "server-dist/**/*"
+  ],
+  "npmRebuild": false,
+  "compression": "normal",
+  "win": {
+    "target": [
+      "nsis"
+    ],
+    "icon": "build/icon.ico"
+  },
+  "portable": {
+    "artifactName": "Lienzo-${version}-portable.exe"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowElevation": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "Lienzo",
+    "runAfterFinish": true,
+    "deleteAppDataOnUninstall": false,
+    "artifactName": "Lienzo-Setup-${version}.exe",
+    "license": "LICENSE"
+  }
+}
