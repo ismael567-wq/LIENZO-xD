@@ -1,4 +1,6 @@
-# Lienzo 0.1.0-alpha.1
+# LIENZO xD 0.1.0-alpha.1
+
+![LIENZO xD](https://raw.githubusercontent.com/ismael567-wq/LIENZO-xD/main/docs/screenshots/portada.png)
 
 Primera alpha pública de Lienzo, una pizarra visual **local-first** para Windows, web y móvil.
 
