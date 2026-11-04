@@ -303,7 +303,7 @@ El servidor sirve el build y la sala WebSocket. Es la forma más sencilla de com
 
 ## 10. Pruebas y verificación
 
-- **Vitest**: 14 pruebas de geometría, plantillas, conectores, duplicación y parseo de archivos.
+- **Vitest**: 21 pruebas de geometría, conectores (recta, codo y curva), plantillas, duplicación, parseo de archivos y legibilidad de tintas en tema oscuro.
 - **Playwright E2E**: creación/edición, undo/redo, formas, comentarios, presentación, QR, exportación PNG, PWA, deep link móvil y sincronización en tiempo real.
 - **Electron**: arranque del `.exe` empaquetado, servidor en 8788, carga de la UI y preload.
 - **Build**: `tsc --noEmit` + Vite; PWA con 25 entradas precacheadas.

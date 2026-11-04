@@ -12,13 +12,13 @@ La diferencia con Miro es el punto de partida:
 - **Colaboración en tu red**: un servidor pequeño permite editar entre dispositivos de la misma Wi-Fi.
 - **Datos abiertos**: exportas e importas JSON y PNG.
 
-Esta es la **versión alpha 0.1.0-alpha.1**. Está pensada para probar el concepto y detectar fallos, no para producción.
+Esta es la **versión 1.2.0**. Sigue siendo una alpha funcional pensada para probar el concepto y detectar fallos, no para producción.
 
 ---
 
 ## 1. Instalar en Windows
 
-1. Descarga `Lienzo-Setup-0.1.0-alpha.1.exe`.
+1. Descarga `Lienzo-Setup-1.2.0.exe`.
 2. Ejecútalo.
 3. Windows puede mostrar **“Windows protegió tu PC”** porque el ejecutable **no está firmado**. Pulsa **Más información → Ejecutar de todas formas**. Es normal en una alpha sin certificado de firma de código.
 4. Elige la carpeta de instalación o deja la predeterminada.
@@ -31,7 +31,7 @@ El instalador crea:
 - Entrada en el menú Inicio.
 - Desinstalador en **Configuración → Aplicaciones**.
 
-También existe una versión **portable** (`Lienzo-0.1.0-alpha.1-portable.exe`) que no requiere instalación.
+También existe una versión **portable** (`Lienzo-1.2.0-portable.exe`) que no requiere instalación.
 
 ### Requisitos
 
@@ -45,7 +45,7 @@ También existe una versión **portable** (`Lienzo-0.1.0-alpha.1-portable.exe`) 
 
 1. Abre Lienzo. Verás el **dashboard** con tres tableros de ejemplo.
 2. Pulsa **Nuevo tablero** para elegir una plantilla o un lienzo en blanco.
-3. En el tablero, usa la barra lateral:
+3. En el tablero, usa la barra inferior:
    - **Seleccionar (V)**: mover, redimensionar y editar.
    - **Nota (N)**: crear una nota adhesiva.
    - **Texto (T)**: título o párrafo.
@@ -168,7 +168,7 @@ Incluye:
 1. Qué estabas haciendo.
 2. Qué esperabas.
 3. Qué ocurrió.
-4. Versión (`0.1.0-alpha.1`) y plataforma (Windows, navegador, móvil).
+4. Versión (`1.2.0`) y plataforma (Windows, navegador, móvil).
 5. Una captura o el tablero exportado en JSON si es posible.
 
 ---

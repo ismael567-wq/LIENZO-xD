@@ -4,7 +4,7 @@
 
 Repositorio: <https://github.com/ismael567-wq/LIENZO-xD> · Releases: <https://github.com/ismael567-wq/LIENZO-xD/releases>
 
-> **Versión alpha `0.1.0-alpha.1`.** Es una versión para probar y dar feedback, no para producción. El instalador de Windows no está firmado; SmartScreen puede pedir confirmación. Lee la [guía de uso](docs/GUIA-USO.md) y los [límites conocidos](docs/ARQUITECTURA.md#11-límites-conocidos).
+> **Versión `1.2.0`.** Sigue siendo una alpha funcional para probar y dar feedback, no para producción. El instalador de Windows no está firmado; SmartScreen puede pedir confirmación. Lee la [guía de uso](docs/GUIA-USO.md) y los [límites conocidos](docs/ARQUITECTURA.md#11-límites-conocidos).
 
 ![LIENZO xD — captura principal](docs/screenshots/portada.png)
 
@@ -49,8 +49,8 @@ Más capturas en [`docs/screenshots/`](docs/screenshots/).
 
 Los artefactos están en la sección **Releases** del repositorio:
 
-- **Instalador**: `Lienzo-Setup-0.1.0-alpha.1.exe`
-- **Portable**: `Lienzo-0.1.0-alpha.1-portable.exe`
+- **Instalador**: `Lienzo-Setup-1.2.0.exe`
+- **Portable**: `Lienzo-1.2.0-portable.exe`
 
 Si Windows muestra “Windows protegió tu PC”:
 

@@ -2,7 +2,7 @@
 
 Todas las versiones relevantes de Lienzo.
 
-## [Sin publicar] — 2026-11-04
+## [1.2.0] — 2026-11-04
 
 Mejoras de producto y de interfaz inspiradas en Excalidraw. Ver [análisis](docs/EXCALIDRAW-ANALISIS.md).
 
