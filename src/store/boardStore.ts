@@ -45,7 +45,14 @@ import type { CollabClient } from '../lib/collab';
 
 const HISTORY_LIMIT = 60;
 
-type OverlayKey = 'share' | 'templates' | 'shortcuts' | 'command' | 'newBoard' | 'about';
+type OverlayKey =
+  | 'share'
+  | 'templates'
+  | 'shortcuts'
+  | 'command'
+  | 'newBoard'
+  | 'about'
+  | 'options';
 
 export interface UiState {
   share: boolean;
@@ -54,6 +61,7 @@ export interface UiState {
   command: boolean;
   newBoard: boolean;
   about: boolean;
+  options: boolean;
 }
 
 export interface PresentationState {
@@ -319,6 +327,7 @@ export const useLienzo = create<LienzoState>()((set, get) => {
       command: false,
       newBoard: false,
       about: false,
+      options: false,
     },
     presentation: null,
 
@@ -434,6 +443,7 @@ export const useLienzo = create<LienzoState>()((set, get) => {
           command: false,
           newBoard: false,
           about: false,
+          options: false,
         },
       });
       syncHash(id);

@@ -18,6 +18,7 @@ import {
   Play,
   Plus,
   Search,
+  Settings,
   Share2,
   Sparkles,
   StickyNote,
@@ -33,6 +34,7 @@ import { Modal } from './Modal';
 import { TemplatePicker } from './TemplatePicker';
 import { Logo } from './Logo';
 import { copyBoardPNG, exportBoardJSON, exportBoardPNG } from '../lib/export';
+import { useUpdates } from '../store/updateStore';
 
 export function NewBoardDialog() {
   const open = useLienzo((state) => state.ui.newBoard);
@@ -196,6 +198,7 @@ export function ShortcutsDialog() {
 export function AboutDialog() {
   const open = useLienzo((state) => state.ui.about);
   const setUi = useLienzo((state) => state.setUi);
+  const version = useUpdates((state) => state.current) || __APP_VERSION__;
   if (!open) return null;
   return (
     <Modal
@@ -240,7 +243,7 @@ export function AboutDialog() {
       </div>
       <p className="about-footnote">
         Tus tableros se guardan en este dispositivo. La sala en vivo solo comparte datos por tu
-        red local. Versión 0.1.0-alpha.1 · canal alpha.
+        red local. Versión {version} · canal estable.
       </p>
     </Modal>
   );
@@ -452,6 +455,17 @@ export function CommandPalette() {
         run: () => {
           close();
           setUi('shortcuts', true);
+        },
+      },
+      {
+        id: 'options',
+        label: 'Opciones y actualizaciones',
+        hint: 'Apariencia y versión',
+        icon: <Settings size={17} />,
+        group: 'Ajustes',
+        run: () => {
+          close();
+          setUi('options', true);
         },
       },
       {

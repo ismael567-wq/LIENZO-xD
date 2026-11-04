@@ -1,7 +1,12 @@
-const { app, BrowserWindow, shell, Menu } = require('electron');
+const { app, BrowserWindow, shell, Menu, ipcMain } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
+const { Readable } = require('node:stream');
+const { pipeline } = require('node:stream/promises');
 const { pathToFileURL } = require('node:url');
+
+const REPO = 'ismael567-wq/LIENZO-xD';
+const USER_AGENT = 'Lienzo-Desktop';
 
 let mainWindow = null;
 let serverInfo = null;
@@ -19,6 +24,7 @@ const debug = (...parts) => {
 };
 
 debug('boot', process.env.ELECTRON_RUN_AS_NODE, process.versions.electron);
+debug('user-data', app.getPath('userData'));
 app.on('before-quit', () => debug('before-quit'));
 
 const gotLock = app.requestSingleInstanceLock();
@@ -138,4 +144,48 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   serverInfo?.close?.().catch(() => {});
+});
+
+ipcMain.handle('lienzo:version', () => app.getVersion());
+
+ipcMain.handle('lienzo:latest-release', async () => {
+  const response = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
+    headers: { Accept: 'application/vnd.github+json', 'User-Agent': USER_AGENT },
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!response.ok) throw new Error(`GitHub respondió ${response.status}.`);
+  return response.json();
+});
+
+ipcMain.handle('lienzo:open-external', async (_event, url) => {
+  if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) {
+    throw new Error('URL no válida.');
+  }
+  await shell.openExternal(url);
+});
+
+ipcMain.handle('lienzo:install-update', async (_event, payload) => {
+  const url = payload?.url;
+  if (typeof url !== 'string' || !/^https:\/\//i.test(url)) {
+    throw new Error('La actualización no tiene una URL válida.');
+  }
+  const safeName = String(payload?.name || 'Lienzo-Setup.exe').replace(/[^a-zA-Z0-9._-]/g, '_');
+  const target = path.join(app.getPath('downloads'), safeName);
+
+  const response = await fetch(url, {
+    headers: { 'User-Agent': USER_AGENT },
+    redirect: 'follow',
+    signal: AbortSignal.timeout(10 * 60 * 1000),
+  });
+  if (!response.ok || !response.body) {
+    throw new Error(`No se pudo descargar la actualización (${response.status}).`);
+  }
+  await pipeline(Readable.fromWeb(response.body), fs.createWriteStream(target));
+
+  // Launch the installer through the Windows shell so it runs with the user's
+  // normal permissions. The wizard handles upgrades and preserves app data.
+  const error = await shell.openPath(target);
+  if (error) throw new Error(error);
+  setTimeout(() => app.quit(), 1500);
+  return { started: true };
 });

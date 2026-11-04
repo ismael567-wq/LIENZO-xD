@@ -13,6 +13,8 @@ import {
 } from './components/dialogs';
 import { Toast } from './components/Toast';
 import { Logo } from './components/Logo';
+import { OptionsDialog } from './components/OptionsDialog';
+import { useUpdates } from './store/updateStore';
 
 function LoadingScreen() {
   return (
@@ -34,6 +36,7 @@ export default function App() {
 
   useEffect(() => {
     void init();
+    void useUpdates.getState().init();
     const detach = attachPersistence();
     return detach;
   }, [init]);
@@ -86,6 +89,7 @@ export default function App() {
       <CommandPalette />
       <ShortcutsDialog />
       <AboutDialog />
+      <OptionsDialog />
       <Toast />
     </div>
   );

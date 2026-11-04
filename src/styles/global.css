@@ -3727,6 +3727,358 @@ kbd {
   background: var(--muted-2);
 }
 
+/* ---------------------------------------------------------------- options & updates */
+
+.dash-brand {
+  justify-content: flex-start;
+  gap: 7px;
+}
+
+.dash-brand .dash-version {
+  margin-left: auto;
+}
+
+.dash-options {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: var(--muted);
+}
+
+.topbar-options,
+.dash-options {
+  position: relative;
+}
+
+.topbar-options.has-update,
+.dash-options.has-update {
+  color: var(--brand);
+}
+
+.update-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--coral);
+  box-shadow: 0 0 0 2px var(--paper);
+  animation: updatePulse 2.4s ease-in-out infinite;
+}
+
+@keyframes updatePulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 0.7;
+  }
+}
+
+.options-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.options-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 15px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.options-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.options-section-head h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.options-section-head h3 svg {
+  color: var(--brand);
+}
+
+.options-section-head > span {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.options-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.options-row + .options-row {
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+
+.options-row-wrap {
+  align-items: flex-start;
+}
+
+.options-copy {
+  min-width: 0;
+}
+
+.options-copy strong {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.options-copy p {
+  margin-top: 2px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.options-row .btn {
+  flex: none;
+}
+
+.options-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  height: 32px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  transition: border-color 0.14s ease, color 0.14s ease, background 0.14s ease;
+}
+
+.options-toggle:hover {
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+.options-toggle.is-on {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.options-row .grid-size-row {
+  padding: 0;
+  min-width: 154px;
+  flex: none;
+}
+
+.options-row .grid-size-row button {
+  height: 30px;
+  font-size: 11px;
+}
+
+.options-footnote {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted-2);
+  padding: 0 4px;
+}
+
+.options-footnote svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+/* Updates */
+
+.update-section.has-update {
+  border-color: color-mix(in srgb, var(--brand) 45%, var(--line));
+  background:
+    linear-gradient(180deg, var(--brand-soft) 0%, transparent 68%),
+    var(--surface);
+}
+
+.update-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 13px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-2);
+}
+
+.update-card-main {
+  min-width: 0;
+}
+
+.update-version {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.update-card-main p {
+  margin-top: 2px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.update-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 99px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.update-pill.is-available {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.update-pill.is-current {
+  color: var(--brand);
+  border-color: color-mix(in srgb, var(--brand) 35%, var(--line));
+}
+
+.update-pill.is-error {
+  color: var(--coral);
+  border-color: color-mix(in srgb, var(--coral) 45%, var(--line));
+}
+
+.update-release {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 13px 14px;
+  border-radius: 11px;
+  border: 1px dashed color-mix(in srgb, var(--brand) 45%, var(--line));
+  background: color-mix(in srgb, var(--brand-soft) 55%, var(--surface));
+}
+
+.update-release strong {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.update-release p {
+  margin-top: 3px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.update-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.update-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--coral);
+}
+
+.update-error svg {
+  flex: none;
+}
+
+.update-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+[data-theme='dark'] .update-dot {
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+[data-theme='dark'] .options-section {
+  box-shadow: none;
+}
+
+@media (max-width: 640px) {
+  .options-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .options-row .btn,
+  .options-toggle {
+    align-self: flex-start;
+  }
+
+  .options-row .grid-size-row {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .update-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .update-actions {
+    flex-direction: column;
+  }
+
+  .update-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 /* ---------------------------------------------------------------- dark theme */
 
 [data-theme='dark'] {

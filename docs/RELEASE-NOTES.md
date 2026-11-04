@@ -1,20 +1,20 @@
-# LIENZO xD 1.2.0
+# LIENZO xD 1.2.1
 
 ![LIENZO xD](https://raw.githubusercontent.com/ismael567-wq/LIENZO-xD/main/docs/screenshots/portada.png)
 
-Actualización de producto de Lienzo, la pizarra visual **local-first** para Windows, web y móvil. Esta versión toma los mejores gestos de Excalidraw y los adapta a la arquitectura local-first de Lienzo.
+Actualización de mantenimiento de Lienzo, la pizarra visual **local-first** para Windows, web y móvil. Esta versión arregla la instalación sobre versiones anteriores y añade un comprobador de actualizaciones dentro de la app.
 
 ## Descargar
 
-- **Instalador Windows x64:** `Lienzo-Setup-1.2.0.exe`
-- **Portable Windows x64:** `Lienzo-1.2.0-portable.exe`
+- **Instalador Windows x64:** `Lienzo-Setup-1.2.1.exe`
+- **Portable Windows x64:** `Lienzo-1.2.1-portable.exe`
 
 También puedes generarlos desde el código:
 
 ```bash
 npm install
-npm run desktop:installer   # release/Lienzo-Setup-1.2.0.exe
-npm run desktop:portable    # release/Lienzo-1.2.0-portable.exe
+npm run desktop:installer   # release/Lienzo-Setup-1.2.1.exe
+npm run desktop:portable    # release/Lienzo-1.2.1-portable.exe
 ```
 
 El ejecutable no está firmado. Si Windows muestra “Windows protegió tu PC”:
@@ -24,28 +24,34 @@ El ejecutable no está firmado. Si Windows muestra “Windows protegió tu PC”
 
 ## Novedades
 
-- **Tema oscuro** completo, aplicado a la interfaz y al lienzo, con persistencia local.
-- **Barra de herramientas flotante inferior** y dock móvil actualizado.
-- **Acciones rápidas** junto a la selección: duplicar, copiar PNG, agrupar, orden Z, bloquear y eliminar.
-- **Menú contextual** con clic derecho.
-- **Puntero láser** efímero con `K`.
-- **Grupos** con `Ctrl/Cmd+G` y `Ctrl/Cmd+Shift+G`.
-- **Rellenos** sólido, rayado, cruzado y puntos; **bordes** sólidos, discontinuos y punteados.
-- **Conectores** rectos, en codo y curvos.
-- **Tipografía mono y cursiva**.
-- **Exportación PNG** de la selección, copia al portapapeles y fondo transparente.
-- **Arrastrar y soltar imágenes**.
-- **Modo concentración** con salida por `Esc`.
-- **Cuadrícula configurable** y ajuste con `G`.
-- Paleta de comandos y hoja de atajos ampliadas.
+- **Botón Opciones** en la barra superior y en el panel lateral, con la versión instalada.
+- **Comprobador de actualizaciones** contra GitHub, con aviso visual cuando hay una versión nueva.
+- **Descarga e instalación desde la app**: descarga el instalador y abre el asistente de Windows.
+- **Entrada en la paleta de comandos**: «Opciones y actualizaciones».
+- **Versión real** en el diálogo Acerca de.
+
+## Correcciones
+
+- La actualización ya no falla con «Fallo al desinstalar archivos antiguos de la aplicación» cuando el desinstalador de la versión anterior devuelve un error. El instalador limpia la carpeta anterior y continúa.
+- El flujo de actualización abre el asistente interactivo en lugar de una instalación silenciosa que podía terminar sin instalar nada.
+- Tus tableros, preferencias y datos locales se conservan al actualizar.
+
+## Actualizar desde 1.2.0 o anterior
+
+1. Abre Lienzo.
+2. Pulsa el engranaje **Opciones**.
+3. Pulsa **Buscar actualizaciones**.
+4. Cuando aparezca la versión nueva, pulsa **Descargar e instalar**.
+5. Se abrirá el asistente de Windows. Lienzo se cerrará para dejar instalar la nueva versión.
+
+Si prefieres hacerlo a mano, descarga `Lienzo-Setup-1.2.1.exe` desde esta release y ejecútalo. No es necesario desinstalar antes.
 
 ## Verificación
 
 - `npm run typecheck` sin errores.
-- 21 pruebas unitarias aprobadas.
+- 29 pruebas unitarias aprobadas.
 - `npm run build` correcto.
-- Revisión del tablero, tema oscuro, acciones rápidas y menú contextual en navegador.
-- Pruebas nuevas de rutas de conector y legibilidad de tintas en tema oscuro.
+- Comprobación de la app de escritorio: versión, diálogo de Opciones, búsqueda de actualizaciones y carga de tableros existentes.
 
 ## Límites conocidos
 
@@ -60,7 +66,6 @@ El ejecutable no está firmado. Si Windows muestra “Windows protegió tu PC”
 - React 19 + TypeScript + Canvas 2D.
 - Vite 8, Zustand, IndexedDB, Node.js + WebSocket, Electron, Capacitor.
 - Build Windows con Electron Builder (NSIS + portable).
-- Análisis de referencia: [`docs/EXCALIDRAW-ANALISIS.md`](https://github.com/ismael567-wq/LIENZO-xD/blob/main/docs/EXCALIDRAW-ANALISIS.md).
 - Código y documentación: <https://github.com/ismael567-wq/LIENZO-xD>
 
 Hecho para pensar en voz alta, sin pedir permiso a la nube.

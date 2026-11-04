@@ -12,6 +12,7 @@ import {
   MoreHorizontal,
   Plus,
   Search,
+  Settings,
   ShieldCheck,
   Star,
   Trash2,
@@ -24,6 +25,7 @@ import { BoardPreview } from './BoardPreview';
 import { Logo, initials } from './Logo';
 import { createBoard, TEMPLATES, DEFAULT_BOARD_NAME } from '../lib/templates';
 import { exportBoardJSON, exportBoardPNG } from '../lib/export';
+import { hasPendingUpdate, useUpdates } from '../store/updateStore';
 
 type Filter = 'all' | 'recent' | 'favorites';
 
@@ -248,6 +250,8 @@ export function Dashboard() {
   const [nameDraft, setNameDraft] = useState(userName);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const isDesktopApp = Boolean(window.lienzoDesktop?.isDesktop);
+  const pendingUpdate = useUpdates(hasPendingUpdate);
+  const currentVersion = useUpdates((state) => state.current) || __APP_VERSION__;
 
   useEffect(() => setNameDraft(userName), [userName]);
 
@@ -302,7 +306,21 @@ export function Dashboard() {
       <aside className="dash-sidebar">
         <div className="dash-brand">
           <Logo size={32} withWord />
-          <span className="dash-version" title="Versión alpha">alpha</span>
+          <span className="dash-version" title="Versión instalada">
+            v{currentVersion}
+          </span>
+          <button
+            type="button"
+            className={`icon-btn dash-options ${pendingUpdate ? 'has-update' : ''}`}
+            onClick={() => setUi('options', true)}
+            aria-label="Opciones y actualizaciones"
+            title={
+              pendingUpdate ? 'Hay una actualización disponible' : 'Opciones y actualizaciones'
+            }
+          >
+            <Settings size={16} />
+            {pendingUpdate ? <span className="update-dot" aria-hidden="true" /> : null}
+          </button>
         </div>
         <nav className="dash-nav" aria-label="Navegación principal">
           <span className="nav-label">Espacio</span>
@@ -406,6 +424,15 @@ export function Dashboard() {
         <header className="mobile-dash-head">
           <Logo size={28} withWord />
           <div>
+            <button
+              type="button"
+              className={`icon-btn ${pendingUpdate ? 'has-update' : ''}`}
+              onClick={() => setUi('options', true)}
+              aria-label="Opciones y actualizaciones"
+            >
+              <Settings size={18} />
+              {pendingUpdate ? <span className="update-dot" aria-hidden="true" /> : null}
+            </button>
             <button type="button" className="icon-btn" onClick={() => setUi('newBoard', true)} aria-label="Nuevo tablero">
               <Plus size={18} />
             </button>

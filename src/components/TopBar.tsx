@@ -20,6 +20,7 @@ import {
   Plus,
   Share2,
   ShieldCheck,
+  Settings,
   Sparkles,
   Star,
   Sun,
@@ -32,6 +33,7 @@ import type { Board } from '../types';
 import { useLienzo } from '../store/boardStore';
 import { copyBoardPNG, exportBoardJSON, exportBoardPNG, safeFileName } from '../lib/export';
 import { copyToClipboard } from '../lib/net';
+import { hasPendingUpdate, useUpdates } from '../store/updateStore';
 import { initials, Logo } from './Logo';
 
 interface TopBarProps {
@@ -120,6 +122,8 @@ export function TopBar({ board }: TopBarProps) {
   const startPresentation = useLienzo((state) => state.startPresentation);
   const setUi = useLienzo((state) => state.setUi);
   const showToast = useLienzo((state) => state.showToast);
+  const pendingUpdate = useUpdates(hasPendingUpdate);
+  const latestVersion = useUpdates((state) => state.latest);
 
   useOutsideClose(exportRef, exportOpen, () => setExportOpen(false));
   useOutsideClose(moreRef, moreOpen, () => setMoreOpen(false));
@@ -221,6 +225,20 @@ export function TopBar({ board }: TopBarProps) {
       </div>
 
       <div className="topbar-right">
+        <button
+          type="button"
+          className={`icon-btn topbar-options ${pendingUpdate ? 'has-update' : ''}`}
+          onClick={() => setUi('options', true)}
+          aria-label="Opciones y actualizaciones"
+          title={
+            pendingUpdate
+              ? `Actualización ${latestVersion ?? ''} disponible`
+              : 'Opciones y actualizaciones'
+          }
+        >
+          <Settings size={18} />
+          {pendingUpdate ? <span className="update-dot" aria-hidden="true" /> : null}
+        </button>
         <button
           type="button"
           className="icon-btn topbar-theme"

@@ -12,13 +12,13 @@ La diferencia con Miro es el punto de partida:
 - **Colaboración en tu red**: un servidor pequeño permite editar entre dispositivos de la misma Wi-Fi.
 - **Datos abiertos**: exportas e importas JSON y PNG.
 
-Esta es la **versión 1.2.0**. Sigue siendo una alpha funcional pensada para probar el concepto y detectar fallos, no para producción.
+Esta es la **versión 1.2.1**. Sigue siendo una alpha funcional pensada para probar el concepto y detectar fallos, no para producción.
 
 ---
 
 ## 1. Instalar en Windows
 
-1. Descarga `Lienzo-Setup-1.2.0.exe`.
+1. Descarga `Lienzo-Setup-1.2.1.exe`.
 2. Ejecútalo.
 3. Windows puede mostrar **“Windows protegió tu PC”** porque el ejecutable **no está firmado**. Pulsa **Más información → Ejecutar de todas formas**. Es normal en una alpha sin certificado de firma de código.
 4. Elige la carpeta de instalación o deja la predeterminada.
@@ -31,7 +31,17 @@ El instalador crea:
 - Entrada en el menú Inicio.
 - Desinstalador en **Configuración → Aplicaciones**.
 
-También existe una versión **portable** (`Lienzo-1.2.0-portable.exe`) que no requiere instalación.
+También existe una versión **portable** (`Lienzo-1.2.1-portable.exe`) que no requiere instalación.
+
+### Actualizar desde una versión anterior
+
+Lienzo incluye un botón **Opciones** (engranaje) en la barra superior y en el panel lateral. Desde ahí puedes:
+
+- Ver la versión instalada.
+- Comprobar si hay una actualización publicada en GitHub.
+- Descargar y abrir el instalador de la nueva versión.
+
+El aviso de actualización también aparece como un punto coral sobre el engranaje. Al instalar una versión nueva, **tus tableros y preferencias se conservan**: viven en `%APPDATA%\Lienzo` y el instalador no los borra.
 
 ### Requisitos
 
@@ -168,7 +178,7 @@ Incluye:
 1. Qué estabas haciendo.
 2. Qué esperabas.
 3. Qué ocurrió.
-4. Versión (`1.2.0`) y plataforma (Windows, navegador, móvil).
+4. Versión (`1.2.1`) y plataforma (Windows, navegador, móvil).
 5. Una captura o el tablero exportado en JSON si es posible.
 
 ---

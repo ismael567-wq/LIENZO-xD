@@ -39,6 +39,7 @@
     "runAfterFinish": true,
     "deleteAppDataOnUninstall": false,
     "artifactName": "Lienzo-Setup-${version}.exe",
-    "license": "LICENSE"
+    "license": "LICENSE",
+    "include": "build/installer.nsh"
   }
 }

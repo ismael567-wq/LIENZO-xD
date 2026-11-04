@@ -2,6 +2,24 @@
 
 Todas las versiones relevantes de Lienzo.
 
+## [1.2.1] — 2026-11-04
+
+Actualización de mantenimiento centrada en las actualizaciones y en la instalación sobre versiones anteriores.
+
+### Añadido
+
+- Botón **Opciones** en la barra superior y en el panel lateral, con versión instalada y comprobación de actualizaciones contra GitHub.
+- Aviso visual (punto coral) cuando hay una versión nueva disponible.
+- Descarga del instalador desde la propia app y apertura del asistente de instalación.
+- Entrada «Opciones y actualizaciones» en la paleta de comandos.
+- Versión real de la app en el diálogo **Acerca de**.
+
+### Corregido
+
+- La actualización desde versiones anteriores ya no se bloquea cuando el desinstalador antiguo devuelve un error: el instalador limpia la carpeta anterior y continúa.
+- El flujo de actualización abre el asistente interactivo en lugar de intentar una instalación silenciosa poco fiable.
+- Los tableros y las preferencias se conservan al actualizar.
+
 ## [1.2.0] — 2026-11-04
 
 Mejoras de producto y de interfaz inspiradas en Excalidraw. Ver [análisis](docs/EXCALIDRAW-ANALISIS.md).

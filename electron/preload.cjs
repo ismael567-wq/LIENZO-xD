@@ -1,4 +1,4 @@
-const { contextBridge } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 
 function argument(name) {
   const prefix = `--${name}=`;
@@ -19,4 +19,8 @@ contextBridge.exposeInMainWorld('lienzoDesktop', {
   serverUrl,
   lanUrl: lanUrl || null,
   platform: process.platform,
+  getVersion: () => ipcRenderer.invoke('lienzo:version'),
+  fetchLatestRelease: () => ipcRenderer.invoke('lienzo:latest-release'),
+  openExternal: (url) => ipcRenderer.invoke('lienzo:open-external', url),
+  installUpdate: (payload) => ipcRenderer.invoke('lienzo:install-update', payload),
 });
