@@ -13,13 +13,13 @@ import {
   MousePointer2,
   PenLine,
   Redo2,
-  Shapes,
   Square,
   StickyNote,
   Type,
   Undo2,
   MoreHorizontal,
   LayoutTemplate,
+  Zap,
 } from 'lucide-react';
 import type { ShapeKind, Tool } from '../types';
 import { useLienzo } from '../store/boardStore';
@@ -203,6 +203,14 @@ export function Toolbar({
       >
         <Highlighter size={19} />
       </ToolButton>
+      <ToolButton
+        active={tool === 'laser'}
+        label="Puntero láser"
+        shortcut="K"
+        onClick={() => onTool('laser')}
+      >
+        <Zap size={19} />
+      </ToolButton>
       <div className="tool-divider" />
       <ToolButton label="Insertar imagen" shortcut="I" onClick={onImage}>
         <ImageIcon size={19} />
@@ -235,11 +243,20 @@ export function Toolbar({
       <ToolButton label="Plantillas" onClick={onTemplates}>
         <LayoutTemplate size={19} />
       </ToolButton>
-      <div className="toolbar-spacer" />
-      <ToolButton label="Deshacer" shortcut="⌘Z" onClick={undo} className={!canUndo ? 'is-disabled' : ''}>
+      <ToolButton
+        label="Deshacer"
+        shortcut="⌘Z"
+        onClick={undo}
+        className={!canUndo ? 'is-disabled' : ''}
+      >
         <Undo2 size={18} />
       </ToolButton>
-      <ToolButton label="Rehacer" shortcut="⇧⌘Z" onClick={redo} className={!canRedo ? 'is-disabled' : ''}>
+      <ToolButton
+        label="Rehacer"
+        shortcut="⇧⌘Z"
+        onClick={redo}
+        className={!canRedo ? 'is-disabled' : ''}
+      >
         <Redo2 size={18} />
       </ToolButton>
     </aside>
@@ -281,6 +298,10 @@ export function MobileDock({
           <button type="button" onClick={() => choose('highlighter')} aria-label="Resaltar">
             <Highlighter size={20} />
             <span>Resaltar</span>
+          </button>
+          <button type="button" onClick={() => choose('laser')} aria-label="Puntero láser">
+            <Zap size={20} />
+            <span>Láser</span>
           </button>
           <button type="button" onClick={() => choose('frame')} aria-label="Marco">
             <Frame size={20} />

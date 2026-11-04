@@ -14,13 +14,17 @@ Lienzo es una alternativa deliberadamente contenida a Miro: recupera el gesto de
 
 - **Lienzo infinito** con pan, zoom, atajos y navegación táctil.
 - **Notas, formas, texto, dibujo, resaltador, imágenes, marcos y conectores.**
-- **Selección múltiple**, alineación, distribución, orden Z, bloqueo y duplicación.
-- **Edición en línea** de notas, textos y etiquetas de formas.
+- **Puntero láser** efímero para señalar sin dejar trazos.
+- **Tema claro y oscuro** que también cambia el lienzo, no solo la interfaz.
+- **Barra flotante inferior**, acciones rápidas sobre la selección y menú contextual.
+- **Selección múltiple**, agrupación, alineación, distribución, orden Z, bloqueo y duplicación.
+- **Estilos de relleno y borde** (sólido, rayado, cruzado, puntos) y conectores rectos, en codo o curva.
+- **Edición en línea** de notas, textos y etiquetas de formas, con tipografías sans, serif y mono.
 - **9 plantillas** curadas: lluvia de ideas, retrospectiva, kanban, mapa mental, flujo, viaje del cliente, plan semanal y bienvenida.
 - **Comentarios anclados** con resolución y lista lateral.
-- **Presentación** recorriendo marcos como diapositivas.
+- **Presentación** recorriendo marcos como diapositivas y **modo concentración** sin paneles.
 - **Persistencia local** en IndexedDB y autosave.
-- **Exportar PNG/JSON**, importar archivos `.lienzo.json`.
+- **Exportar PNG/JSON**, PNG de la selección, copia al portapapeles, fondo transparente e importar archivos `.lienzo.json`.
 - **Sala en vivo por LAN**: QR, enlace, presencia, cursores y sincronización en tiempo real.
 - **Web, escritorio y móvil** con la misma base de código.
 - **PWA instalable** y proyectos nativos Android/iOS con Capacitor.
@@ -139,15 +143,19 @@ La sala se sirve desde tu equipo. Los tableros se guardan en `data/boards/` cuan
 | Forma | `R` / `O` elipse / `D` rombo |
 | Conector | `C` |
 | Dibujar / resaltar | `P` / `L` |
+| Puntero láser | `K` |
 | Marco | `F` |
 | Comentario | `M` |
 | Imagen | `I` |
 | Borrar | `E` |
+| Ajuste a cuadrícula | `G` |
 | Deshacer / rehacer | `Ctrl/Cmd+Z` / `Ctrl/Cmd+Shift+Z` |
 | Duplicar | `Ctrl/Cmd+D` |
+| Agrupar / desagrupar | `Ctrl/Cmd+G` / `Ctrl/Cmd+Shift+G` |
 | Paleta de comandos | `Ctrl/Cmd+K` |
 | Ajustar a todo | `Shift+1` |
 | Presentar / salir | `Presentar` / `Esc` |
+| Salir de concentración | `Esc` |
 
 ## Arquitectura en 30 segundos
 
@@ -163,6 +171,7 @@ Más detalle en [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
 
 - [Guía de uso](docs/GUIA-USO.md): instalar, primeros pasos, LAN, móvil y resolución de problemas.
 - [Análisis de Miro](docs/ANALISIS-MIRO.md): producto, objetivos, GitHub, arquitectura pública, negocio y oportunidad.
+- [Análisis de Excalidraw](docs/EXCALIDRAW-ANALISIS.md): patrones de interfaz, modelo de datos, render y decisiones de esta tanda.
 - [Instalación de REA](docs/REA-INSTALACION.md): repo original, instalación, compilación y verificación del CLI.
 - [Arquitectura](docs/ARQUITECTURA.md): modelo de datos, render, sync, plataformas y límites.
 - [Verificación](docs/VERIFICACION.md): pruebas, E2E, build, Electron y capturas.

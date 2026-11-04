@@ -3,6 +3,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  ImagePlus,
   MessageSquarePlus,
   SlidersHorizontal,
   X,
@@ -15,6 +16,8 @@ import { MobileDock, Toolbar } from './Toolbar';
 import { Inspector } from './Inspector';
 import { ZoomBar } from './ZoomBar';
 import { TextEditor } from './TextEditor';
+import { QuickActions } from './QuickActions';
+import { ContextMenu, type ContextMenuState } from './ContextMenu';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import {
   boundsOfItems,
@@ -173,10 +176,17 @@ export function BoardView() {
   const presentation = useLienzo((state) => state.presentation);
   const peers = useLienzo((state) => state.collab.peers);
   const isMobile = useMediaQuery('(max-width: 820px)');
+  const zen = useLienzo((state) => state.zen);
+  const theme = useLienzo((state) => state.theme);
+  const saveStatus = useLienzo((state) => state.saveStatus);
+  const setZen = useLienzo((state) => state.setZen);
   const [panelOpen, setPanelOpen] = useState(!isMobile);
   const [pendingComment, setPendingComment] = useState<Point | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [dropActive, setDropActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const replaceIdRef = useRef<string | null>(null);
+  const mainRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (isMobile) setPanelOpen(selected.length > 0);
@@ -261,6 +271,33 @@ export function BoardView() {
   const openImagePicker = (replaceId?: string) => {
     replaceIdRef.current = replaceId ?? null;
     fileInputRef.current?.click();
+  };
+
+  const onDragOver = (event: React.DragEvent<HTMLElement>) => {
+    if (!event.dataTransfer.types.includes('Files')) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+    setDropActive(true);
+  };
+
+  const onDragLeave = (event: React.DragEvent<HTMLElement>) => {
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+    setDropActive(false);
+  };
+
+  const onDrop = (event: React.DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    setDropActive(false);
+    const files = Array.from(event.dataTransfer.files).filter((file) =>
+      file.type.startsWith('image/'),
+    );
+    if (files.length === 0) return;
+    const rect = mainRef.current?.getBoundingClientRect();
+    const screen = rect
+      ? { x: event.clientX - rect.left, y: event.clientY - rect.top }
+      : { x: 0, y: 0 };
+    const world = screenToWorld(screen, useLienzo.getState().viewport);
+    void addImageFiles(files, world);
   };
 
   const zoomBy = (factor: number) => {
@@ -361,6 +398,12 @@ export function BoardView() {
         state.showToast('Lienzo guarda automáticamente en este dispositivo.', 'success');
         return;
       }
+      if (mod && key === 'g') {
+        event.preventDefault();
+        if (event.shiftKey) state.ungroupSelected();
+        else state.groupSelected();
+        return;
+      }
       if (mod && key === '0') {
         event.preventDefault();
         resetZoom();
@@ -374,6 +417,14 @@ export function BoardView() {
         return;
       }
       if (key === 'escape') {
+        if (contextMenu) {
+          setContextMenu(null);
+          return;
+        }
+        if (zen) {
+          setZen(false);
+          return;
+        }
         if (pendingComment) {
           setPendingComment(null);
           return;
@@ -454,6 +505,8 @@ export function BoardView() {
         c: () => state.setTool('connector'),
         p: () => state.setTool('pen'),
         l: () => state.setTool('highlighter'),
+        k: () => state.setTool('laser'),
+        g: () => state.setSnapToGrid(!state.snapToGrid),
         f: () => state.setTool('frame'),
         m: () => state.setTool('comment'),
         e: () => state.setTool('eraser'),
@@ -466,7 +519,7 @@ export function BoardView() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [board, pendingComment, panelOpen, isMobile, addImageFiles]);
+  }, [board, pendingComment, panelOpen, isMobile, addImageFiles, contextMenu, zen, setZen]);
 
   if (!board) return null;
 
@@ -482,9 +535,15 @@ export function BoardView() {
     : null;
 
   return (
-    <div className="board-shell">
-      {!presentation ? <TopBar board={board} /> : null}
-      <main className={`canvas-area ${presentation ? 'is-presenting' : ''}`}>
+    <div className={`board-shell ${zen ? 'is-zen' : ''} theme-${theme}`}>
+      {!presentation && !zen ? <TopBar board={board} /> : null}
+      <main
+        ref={mainRef}
+        className={`canvas-area ${presentation ? 'is-presenting' : ''}`}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+      >
         <CanvasStage
           board={board}
           viewport={viewport}
@@ -495,6 +554,9 @@ export function BoardView() {
           snapToGrid={snapToGrid}
           readOnly={Boolean(presentation)}
           clip={presentationClip}
+          onContextMenu={(world, item, screen) => {
+            setContextMenu({ world, item, screen });
+          }}
           onCommentPoint={(point) => {
             setPendingComment(point);
             setPanelOpen(false);
@@ -503,7 +565,7 @@ export function BoardView() {
 
         <TextEditor board={board} viewport={viewport} />
 
-        {!presentation ? (
+        {!presentation && !zen ? (
           <>
             <div className="comment-pins">
               {board.comments.map((comment, index) => {
@@ -567,7 +629,7 @@ export function BoardView() {
           </>
         ) : null}
 
-        {!presentation ? (
+        {!presentation && !zen ? (
           <>
             <Toolbar
               tool={tool}
@@ -631,6 +693,53 @@ export function BoardView() {
         ) : null}
 
         <PresentationOverlay board={board} />
+
+        {!presentation && !zen ? (
+          <QuickActions
+            board={board}
+            selected={selected}
+            viewport={viewport}
+            stageSize={stageSize}
+          />
+        ) : null}
+
+        {!presentation ? (
+          <ContextMenu
+            board={board}
+            state={contextMenu}
+            onClose={() => setContextMenu(null)}
+          />
+        ) : null}
+
+        {dropActive ? (
+          <div className="drop-overlay" aria-hidden="true">
+            <ImagePlus size={30} />
+            <strong>Suelta para insertar la imagen</strong>
+            <span>Se añadirá donde estás mirando</span>
+          </div>
+        ) : null}
+
+        {zen ? (
+          <button type="button" className="zen-exit" onClick={() => setZen(false)}>
+            Salir del modo concentración <kbd>Esc</kbd>
+          </button>
+        ) : null}
+
+        {!presentation && !zen ? (
+          <div className="board-status" aria-live="polite">
+            <span>{board.items.length} elementos</span>
+            <span className="status-dot" />
+            <span>
+              {selected.length > 0 ? `${selected.length} seleccionados` : 'Sin selección'}
+            </span>
+            <span className="status-dot" />
+            <span className={snapToGrid ? 'is-on' : ''}>
+              {snapToGrid ? 'Ajuste activo' : 'Ajuste libre'}
+            </span>
+            <span className="status-dot" />
+            <span>{saveStatus === 'saved' ? 'Guardado local' : 'Guardando…'}</span>
+          </div>
+        ) : null}
       </main>
 
       <input

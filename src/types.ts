@@ -7,6 +7,7 @@ export type Tool =
   | 'connector'
   | 'pen'
   | 'highlighter'
+  | 'laser'
   | 'image'
   | 'frame'
   | 'comment'
@@ -14,6 +15,12 @@ export type Tool =
 
 export type ShapeKind = 'rect' | 'ellipse' | 'diamond';
 export type BackgroundKind = 'dots' | 'grid' | 'plain';
+export type Theme = 'light' | 'dark';
+export type FillStyle = 'solid' | 'hachure' | 'cross-hatch' | 'dots';
+export type StrokeStyle = 'solid' | 'dashed' | 'dotted';
+export type EdgeStyle = 'sharp' | 'round';
+export type ConnectorLineType = 'straight' | 'elbow' | 'curve';
+export type FontFamily = 'sans' | 'serif' | 'mono';
 export type TemplateId =
   | 'blank'
   | 'welcome'
@@ -52,6 +59,8 @@ interface ItemBase {
   updatedAt: number;
   locked?: boolean;
   opacity?: number;
+  /** Elements sharing a group id are selected, moved and duplicated together. */
+  groupId?: string;
 }
 
 export interface StickyItem extends ItemBase {
@@ -73,6 +82,9 @@ export interface ShapeItem extends ItemBase {
   radius: number;
   fontSize: number;
   textColor: string;
+  fillStyle?: FillStyle;
+  strokeStyle?: StrokeStyle;
+  edge?: EdgeStyle;
 }
 
 export interface TextItem extends ItemBase {
@@ -82,7 +94,8 @@ export interface TextItem extends ItemBase {
   color: string;
   align: 'left' | 'center';
   fontWeight: 400 | 500 | 600 | 700;
-  fontFamily?: 'sans' | 'serif';
+  fontFamily?: FontFamily;
+  italic?: boolean;
 }
 
 export interface DrawItem extends ItemBase {
@@ -123,8 +136,10 @@ export interface ConnectorItem {
   arrowStart: boolean;
   arrowEnd: boolean;
   label: string;
+  lineType?: ConnectorLineType;
   updatedAt: number;
   opacity?: number;
+  groupId?: string;
   /** Connectors are positioned by their anchors; these keep the union uniform. */
   x: number;
   y: number;
@@ -162,6 +177,7 @@ export interface Board {
   items: BoardItem[];
   comments: CommentPin[];
   background: BackgroundKind;
+  gridSize?: number;
   favorite?: boolean;
 }
 

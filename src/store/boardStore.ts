@@ -13,6 +13,7 @@ import type {
   SaveStatus,
   ShapeKind,
   TemplateId,
+  Theme,
   ToastMessage,
   Tool,
   Viewport,
@@ -28,7 +29,7 @@ import {
   uid,
   wordCount,
 } from '../lib/geometry';
-import { userColor } from '../lib/theme';
+import { userColor, applyTheme, loadTheme, saveTheme } from '../lib/theme';
 import { createBoard, createWelcomeBoard, DEFAULT_BOARD_NAME } from '../lib/templates';
 import { duplicateItems, newSticky } from '../lib/factory';
 import {
@@ -76,6 +77,9 @@ interface LienzoState {
   future: HistorySnapshot[];
   userName: string;
   snapToGrid: boolean;
+  theme: Theme;
+  zen: boolean;
+  gridSize: number;
   toast: ToastMessage | null;
   collab: CollabState;
   ui: UiState;
@@ -99,6 +103,11 @@ interface LienzoState {
   focusRect: (rect: Rect, padding?: number, maxZoom?: number) => void;
   setSnapToGrid: (value: boolean) => void;
   setBackground: (background: Board['background']) => void;
+  setTheme: (theme: Theme) => void;
+  toggleTheme: () => void;
+  setZen: (value: boolean) => void;
+  toggleZen: () => void;
+  setGridSize: (size: number) => void;
 
   select: (ids: string[], additive?: boolean) => void;
   selectAll: () => void;
@@ -119,6 +128,8 @@ interface LienzoState {
   sendToBack: () => void;
   alignSelected: (mode: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => void;
   distributeSelected: (axis: 'x' | 'y') => void;
+  groupSelected: () => void;
+  ungroupSelected: () => void;
 
   startEditing: (id: string) => void;
   finishEditing: () => void;
@@ -163,6 +174,24 @@ function snapshotOf(board: Board): HistorySnapshot {
     background: board.background,
   });
 }
+
+/** Expand a set of ids so every member of a shared group is included. */
+function expandGroupSelection(board: Board | null, ids: string[]): string[] {
+  if (!board || ids.length === 0) return ids;
+  const groups = new Set<string>();
+  for (const item of board.items) {
+    if (item.groupId && ids.includes(item.id)) groups.add(item.groupId);
+  }
+  if (groups.size === 0) return ids;
+  const next = new Set(ids);
+  for (const item of board.items) {
+    if (item.groupId && groups.has(item.groupId)) next.add(item.id);
+  }
+  return [...next];
+}
+
+const INITIAL_THEME = loadTheme();
+applyTheme(INITIAL_THEME);
 
 function cloneBoardDeep(board: Board): Board {
   const clone = structuredClone(board);
@@ -278,6 +307,9 @@ export const useLienzo = create<LienzoState>()((set, get) => {
     future: [],
     userName: 'Invitado',
     snapToGrid: false,
+    theme: INITIAL_THEME,
+    zen: false,
+    gridSize: 24,
     toast: null,
     collab: makeInitialCollab(),
     ui: {
@@ -371,6 +403,7 @@ export const useLienzo = create<LienzoState>()((set, get) => {
         past: [],
         future: [],
         viewport: { x: 0, y: 0, zoom: 1 },
+        gridSize: board.gridSize ?? 24,
         saveStatus: 'dirty',
         ui: { ...state.ui, newBoard: false },
       });
@@ -393,6 +426,7 @@ export const useLienzo = create<LienzoState>()((set, get) => {
         past: [],
         future: [],
         presentation: null,
+        gridSize: board.gridSize ?? 24,
         ui: {
           ...get().ui,
           share: false,
@@ -541,9 +575,38 @@ export const useLienzo = create<LienzoState>()((set, get) => {
       mutateBoard((board) => ({ ...board, background }), { history: true });
     },
 
+    setTheme: (theme) => {
+      saveTheme(theme);
+      applyTheme(theme);
+      set({ theme });
+    },
+
+    toggleTheme: () => {
+      const next: Theme = get().theme === 'dark' ? 'light' : 'dark';
+      get().setTheme(next);
+    },
+
+    setZen: (zen) => set({ zen }),
+
+    toggleZen: () => {
+      const zen = !get().zen;
+      set({ zen });
+      setTimeout(() => get().fitToContent(120), 60);
+    },
+
+    setGridSize: (size) => {
+      const gridSize = Math.max(8, Math.min(80, Math.round(size)));
+      mutateBoard((board) => ({ ...board, gridSize }));
+      set({ gridSize });
+    },
+
     select: (ids, additive = false) => {
-      const existing = new Set(currentBoardOf(get())?.items.map((item) => item.id) ?? []);
-      const valid = ids.filter((id) => existing.has(id));
+      const board = currentBoardOf(get());
+      const existing = new Set(board?.items.map((item) => item.id) ?? []);
+      const valid = expandGroupSelection(
+        board,
+        ids.filter((id) => existing.has(id)),
+      );
       if (!additive) {
         set({ selected: valid });
         return;
@@ -570,10 +633,13 @@ export const useLienzo = create<LienzoState>()((set, get) => {
     selectInRect: (rect, additive = false) => {
       const board = currentBoardOf(get());
       if (!board) return;
-      const ids = board.items
-        .filter((item) => item.type !== 'frame' && !item.locked)
-        .filter((item) => rectsIntersect(itemRect(item), rect))
-        .map((item) => item.id);
+      const ids = expandGroupSelection(
+        board,
+        board.items
+          .filter((item) => item.type !== 'frame' && !item.locked)
+          .filter((item) => rectsIntersect(itemRect(item), rect))
+          .map((item) => item.id),
+      );
       if (additive) get().select(ids, true);
       else set({ selected: ids });
     },
@@ -749,6 +815,43 @@ export const useLienzo = create<LienzoState>()((set, get) => {
       });
       get().pushHistory();
       get().updateItems(updates);
+    },
+
+    groupSelected: () => {
+      const state = get();
+      const board = currentBoardOf(state);
+      if (!board || state.selected.length < 2) {
+        state.showToast('Selecciona al menos dos elementos para agrupar.', 'info');
+        return;
+      }
+      const groupId = uid(9);
+      const selected = new Set(state.selected);
+      state.pushHistory();
+      state.updateItems(
+        board.items
+          .filter((item) => selected.has(item.id))
+          .map((item) => ({ id: item.id, patch: { groupId } })),
+      );
+      state.showToast('Elementos agrupados.', 'success');
+    },
+
+    ungroupSelected: () => {
+      const state = get();
+      const board = currentBoardOf(state);
+      if (!board) return;
+      const selected = new Set(state.selected);
+      const grouped = board.items.filter(
+        (item) => selected.has(item.id) && item.groupId,
+      );
+      if (grouped.length === 0) {
+        state.showToast('La selección no contiene grupos.', 'info');
+        return;
+      }
+      state.pushHistory();
+      state.updateItems(
+        grouped.map((item) => ({ id: item.id, patch: { groupId: undefined } })),
+      );
+      state.showToast('Grupo deshecho.', 'success');
     },
 
     startEditing: (id) => {

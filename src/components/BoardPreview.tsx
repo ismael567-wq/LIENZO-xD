@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { Board } from '../types';
 import { boundsOfItems, fitViewport } from '../lib/geometry';
 import { renderBoard } from '../lib/canvasRenderer';
+import { useLienzo } from '../store/boardStore';
 
 export function BoardPreview({
   board,
@@ -13,6 +14,7 @@ export function BoardPreview({
   padding?: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const theme = useLienzo((state) => state.theme);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -38,6 +40,7 @@ export function BoardPreview({
           dpr,
           viewport,
           preview: true,
+          theme,
           selected: [],
           comments: true,
           onImageLoad: () => render(),
@@ -51,7 +54,7 @@ export function BoardPreview({
       cancelAnimationFrame(frame);
       observer.disconnect();
     };
-  }, [board, padding]);
+  }, [board, padding, theme]);
 
   return <canvas ref={canvasRef} className={`board-preview ${className}`} aria-hidden="true" />;
 }

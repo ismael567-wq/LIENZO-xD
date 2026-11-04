@@ -10,28 +10,74 @@ import type {
   ShapeItem,
   StickyItem,
   TextItem,
+  Theme,
   Viewport,
 } from '../types';
 import {
   boundsOfItems,
+  connectorLabelPoint,
+  connectorPathPoints,
   getConnectorEndpoints,
   isConnector,
 } from './geometry';
-import { FONT_DISPLAY, FONT_UI } from './theme';
+import { FONT_DISPLAY, FONT_MONO, FONT_UI, readableInk } from './theme';
 
-const PAPER = '#F4F1E8';
-const PAPER_LIGHT = '#FBFAF5';
-const INK = '#16211E';
-const BRAND = '#0E5B4F';
-const GRID_DOT = 'rgba(22, 33, 30, 0.16)';
-const GRID_LINE = 'rgba(22, 33, 30, 0.07)';
+interface Palette {
+  paper: string;
+  paperLight: string;
+  ink: string;
+  brand: string;
+  gridDot: string;
+  gridLine: string;
+  frameFill: string;
+  frameStroke: string;
+  surface: string;
+  muted: string;
+  placeholder: string;
+  shadow: string;
+}
+
+const LIGHT_PALETTE: Palette = {
+  paper: '#F4F1E8',
+  paperLight: '#FBFAF5',
+  ink: '#16211E',
+  brand: '#0E5B4F',
+  gridDot: 'rgba(22, 33, 30, 0.16)',
+  gridLine: 'rgba(22, 33, 30, 0.07)',
+  frameFill: '#FBFAF4',
+  frameStroke: '#E3DCCB',
+  surface: '#FFFDF7',
+  muted: 'rgba(22, 33, 30, 0.42)',
+  placeholder: '#EDE9DC',
+  shadow: 'rgba(22, 33, 30, 0.16)',
+};
+
+const DARK_PALETTE: Palette = {
+  paper: '#141917',
+  paperLight: '#1B211E',
+  ink: '#E9EEE9',
+  brand: '#63D6BE',
+  gridDot: 'rgba(233, 238, 233, 0.2)',
+  gridLine: 'rgba(233, 238, 233, 0.08)',
+  frameFill: '#1B211E',
+  frameStroke: '#34423B',
+  surface: '#202824',
+  muted: 'rgba(233, 238, 233, 0.5)',
+  placeholder: '#242D28',
+  shadow: 'rgba(0, 0, 0, 0.42)',
+};
+
+const paletteFor = (theme: Theme | undefined): Palette =>
+  theme === 'dark' ? DARK_PALETTE : LIGHT_PALETTE;
 
 export interface RenderOptions {
   width: number;
   height: number;
   dpr: number;
   viewport: Viewport;
+  theme?: Theme;
   preview?: boolean;
+  transparent?: boolean;
   selected?: string[];
   editingId?: string | null;
   marquee?: Rect | null;
@@ -94,9 +140,12 @@ function roundRect(
 function fontString(
   size: number,
   weight: number | string = 400,
-  family: 'sans' | 'serif' = 'sans',
+  family: 'sans' | 'serif' | 'mono' = 'sans',
+  italic = false,
 ): string {
-  return `${weight} ${size}px ${family === 'serif' ? FONT_DISPLAY : FONT_UI}`;
+  const stack =
+    family === 'serif' ? FONT_DISPLAY : family === 'mono' ? FONT_MONO : FONT_UI;
+  return `${italic ? 'italic ' : ''}${weight} ${size}px ${stack}`;
 }
 
 export function wrapText(
@@ -147,13 +196,15 @@ function drawDots(
   height: number,
   viewport: Viewport,
   grid: boolean,
+  palette: Palette,
+  gridSize = 24,
 ): void {
-  const spacing = 24 * viewport.zoom;
+  const spacing = gridSize * viewport.zoom;
   if (spacing < 11) return;
   const offsetX = ((viewport.x % spacing) + spacing) % spacing;
   const offsetY = ((viewport.y % spacing) + spacing) % spacing;
   if (grid) {
-    ctx.strokeStyle = GRID_LINE;
+    ctx.strokeStyle = palette.gridLine;
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let x = offsetX; x < width; x += spacing) {
@@ -167,7 +218,7 @@ function drawDots(
     ctx.stroke();
     return;
   }
-  ctx.fillStyle = GRID_DOT;
+  ctx.fillStyle = palette.gridDot;
   const radius = Math.min(1.5, Math.max(0.8, viewport.zoom * 1.05));
   ctx.beginPath();
   for (let x = offsetX; x < width; x += spacing) {
@@ -185,10 +236,11 @@ function drawSticky(
   options: RenderOptions,
 ): void {
   const preview = options.preview ?? false;
+  const palette = paletteFor(options.theme);
   ctx.save();
   ctx.globalAlpha = item.opacity ?? 1;
   if (!preview) {
-    ctx.shadowColor = 'rgba(22, 33, 30, 0.16)';
+    ctx.shadowColor = palette.shadow;
     ctx.shadowBlur = 16;
     ctx.shadowOffsetY = 6;
   }
@@ -205,7 +257,7 @@ function drawSticky(
   if (options.editingId !== item.id) {
     const padding = Math.max(12, Math.min(20, item.w * 0.1));
     const fontSize = item.fontSize || 16;
-    ctx.fillStyle = item.textColor || INK;
+    ctx.fillStyle = item.textColor || palette.ink;
     ctx.font = fontString(fontSize, 500);
     ctx.textBaseline = 'top';
     const lines = wrapText(ctx, item.text || 'Escribe algo…', item.w - padding * 2);
@@ -217,7 +269,7 @@ function drawSticky(
     lines.slice(0, Math.max(maxLines, 1)).forEach((line, index) => {
       ctx.fillStyle =
         item.text || lines.length > 0
-          ? item.textColor || INK
+          ? item.textColor || palette.ink
           : 'rgba(22, 33, 30, 0.38)';
       ctx.fillText(line, item.x + padding, item.y + padding + index * lineHeight);
     });
@@ -260,7 +312,84 @@ function shapePath(
     ctx.closePath();
     return;
   }
-  roundRect(ctx, item.x, item.y, item.w, item.h, item.radius ?? 12);
+  const radius = item.edge === 'sharp' ? 0 : item.radius ?? 12;
+  roundRect(ctx, item.x, item.y, item.w, item.h, radius);
+}
+
+function applyStrokeStyle(
+  ctx: CanvasRenderingContext2D,
+  item: ShapeItem | ConnectorItem,
+  width: number,
+): void {
+  const style =
+    item.type === 'shape'
+      ? item.strokeStyle ?? 'solid'
+      : item.dashed
+        ? 'dashed'
+        : 'solid';
+  if (style === 'dashed') {
+    ctx.setLineDash([Math.max(7, width * 3.2), Math.max(5, width * 2.2)]);
+    ctx.lineCap = 'round';
+  } else if (style === 'dotted') {
+    ctx.setLineDash([Math.max(1, width * 0.8), Math.max(5, width * 2.4)]);
+    ctx.lineCap = 'round';
+  } else {
+    ctx.setLineDash([]);
+  }
+}
+
+function fillShapeWithStyle(
+  ctx: CanvasRenderingContext2D,
+  item: ShapeItem,
+): void {
+  const style = item.fillStyle ?? 'solid';
+  if (style === 'solid') {
+    ctx.fillStyle = item.fill;
+    ctx.fill();
+    return;
+  }
+  ctx.save();
+  shapePath(ctx, item);
+  ctx.clip();
+  ctx.fillStyle = item.fill;
+  ctx.globalAlpha = 0.32;
+  ctx.fillRect(item.x, item.y, item.w, item.h);
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = item.stroke;
+  ctx.lineWidth = Math.max(0.8, Math.min(2, item.strokeWidth || 1.2));
+  const spacing = 9;
+  const diagonal = Math.hypot(item.w, item.h);
+  const steps = Math.ceil(diagonal / spacing) + 2;
+  const drawDiagonal = (direction: 1 | -1) => {
+    ctx.beginPath();
+    for (let step = -steps; step <= steps; step += 1) {
+      const offset = step * spacing;
+      if (direction === 1) {
+        ctx.moveTo(item.x + offset, item.y);
+        ctx.lineTo(item.x + offset + item.h, item.y + item.h);
+      } else {
+        ctx.moveTo(item.x + offset + item.h, item.y);
+        ctx.lineTo(item.x + offset, item.y + item.h);
+      }
+    }
+    ctx.stroke();
+  };
+  if (style === 'hachure') drawDiagonal(1);
+  if (style === 'cross-hatch') {
+    drawDiagonal(1);
+    drawDiagonal(-1);
+  }
+  if (style === 'dots') {
+    ctx.fillStyle = item.stroke;
+    for (let x = item.x + spacing / 2; x < item.x + item.w; x += spacing) {
+      for (let y = item.y + spacing / 2; y < item.y + item.h; y += spacing) {
+        ctx.beginPath();
+        ctx.arc(x, y, 1.15, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+  ctx.restore();
 }
 
 function drawShape(
@@ -269,29 +398,31 @@ function drawShape(
   options: RenderOptions,
 ): void {
   const preview = options.preview ?? false;
+  const palette = paletteFor(options.theme);
   ctx.save();
   ctx.globalAlpha = item.opacity ?? 1;
   if (!preview) {
-    ctx.shadowColor = 'rgba(22, 33, 30, 0.07)';
+    ctx.shadowColor = palette.shadow;
     ctx.shadowBlur = 10;
     ctx.shadowOffsetY = 3;
   }
   shapePath(ctx, item);
-  ctx.fillStyle = item.fill;
-  ctx.fill();
+  fillShapeWithStyle(ctx, item);
   ctx.shadowColor = 'transparent';
   ctx.shadowBlur = 0;
   ctx.shadowOffsetY = 0;
   if (item.strokeWidth > 0) {
     ctx.strokeStyle = item.stroke;
     ctx.lineWidth = item.strokeWidth;
+    applyStrokeStyle(ctx, item, item.strokeWidth);
     ctx.stroke();
+    ctx.setLineDash([]);
   }
   if (options.editingId !== item.id && item.text) {
     const padding = 18;
     const fontSize = item.fontSize || 16;
     ctx.font = fontString(fontSize, 500);
-    ctx.fillStyle = item.textColor || INK;
+    ctx.fillStyle = item.textColor || palette.ink;
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'center';
     const lines = wrapText(ctx, item.text, item.w - padding * 2);
@@ -311,19 +442,27 @@ function drawText(
   options: RenderOptions,
 ): void {
   if (options.editingId === item.id) return;
+  const palette = paletteFor(options.theme);
   ctx.save();
   ctx.globalAlpha = item.opacity ?? 1;
   const fontSize = item.fontSize || 24;
   const weight = item.fontFamily === 'serif' ? 400 : item.fontWeight;
-  ctx.font = fontString(fontSize, weight, item.fontFamily === 'serif' ? 'serif' : 'sans');
-  ctx.fillStyle = item.color;
+  ctx.font = fontString(
+    fontSize,
+    weight,
+    item.fontFamily ?? 'sans',
+    Boolean(item.italic),
+  );
+  ctx.fillStyle = readableInk(item.color, options.theme ?? 'light');
   ctx.textBaseline = 'top';
   ctx.textAlign = item.align === 'center' ? 'center' : 'left';
   const lines = wrapText(ctx, item.text || 'Escribe algo…', item.w);
   const lineHeight = fontSize * 1.28;
   const x = item.align === 'center' ? item.x + item.w / 2 : item.x;
   lines.forEach((line, index) => {
-    ctx.fillStyle = item.text ? item.color : 'rgba(22, 33, 30, 0.32)';
+    ctx.fillStyle = item.text
+      ? readableInk(item.color, options.theme ?? 'light')
+      : palette.muted;
     ctx.fillText(line, x, item.y + index * lineHeight);
   });
   ctx.restore();
@@ -337,7 +476,8 @@ function drawDraw(
   if (item.points.length === 0) return;
   ctx.save();
   ctx.globalAlpha = (item.opacity ?? 1) * (options.preview ? 0.9 : 1);
-  ctx.strokeStyle = item.color;
+  const ink = readableInk(item.color, options.theme ?? 'light');
+  ctx.strokeStyle = ink;
   ctx.lineWidth = item.strokeWidth;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -346,7 +486,7 @@ function drawDraw(
   const points = item.points;
   if (points.length === 1) {
     ctx.arc(points[0].x, points[0].y, item.strokeWidth / 2, 0, Math.PI * 2);
-    ctx.fillStyle = item.color;
+    ctx.fillStyle = ink;
     ctx.fill();
     ctx.restore();
     return;
@@ -369,6 +509,7 @@ function drawImageItem(
   options: RenderOptions,
 ): void {
   const entry = getImage(item.src, options.onImageLoad);
+  const palette = paletteFor(options.theme);
   ctx.save();
   ctx.globalAlpha = item.opacity ?? 1;
   roundRect(ctx, item.x, item.y, item.w, item.h, item.radius ?? 10);
@@ -376,9 +517,9 @@ function drawImageItem(
     ctx.clip();
     ctx.drawImage(entry.image, item.x, item.y, item.w, item.h);
   } else {
-    ctx.fillStyle = '#EDE9DC';
+    ctx.fillStyle = palette.placeholder;
     ctx.fill();
-    ctx.fillStyle = 'rgba(22, 33, 30, 0.42)';
+    ctx.fillStyle = palette.muted;
     ctx.font = fontString(13, 500);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -388,7 +529,7 @@ function drawImageItem(
   ctx.restore();
   ctx.save();
   roundRect(ctx, item.x, item.y, item.w, item.h, item.radius ?? 10);
-  ctx.strokeStyle = 'rgba(22, 33, 30, 0.1)';
+  ctx.strokeStyle = palette.frameStroke;
   ctx.lineWidth = 1;
   ctx.stroke();
   ctx.restore();
@@ -398,6 +539,7 @@ function drawFrameTitle(
   ctx: CanvasRenderingContext2D,
   item: FrameItem,
   selected: boolean,
+  palette: Palette,
 ): void {
   const title = item.title || 'Marco';
   ctx.save();
@@ -406,23 +548,23 @@ function drawFrameTitle(
   const pillWidth = textWidth + 34;
   const pillHeight = 26;
   const y = item.y - 36;
-  ctx.shadowColor = 'rgba(22, 33, 30, 0.07)';
+  ctx.shadowColor = palette.shadow;
   ctx.shadowBlur = 8;
   ctx.shadowOffsetY = 2;
   roundRect(ctx, item.x, y, pillWidth, pillHeight, 7);
-  ctx.fillStyle = '#FFFDF7';
+  ctx.fillStyle = palette.surface;
   ctx.fill();
   ctx.shadowColor = 'transparent';
   ctx.shadowBlur = 0;
   ctx.shadowOffsetY = 0;
-  ctx.strokeStyle = selected ? BRAND : '#E3DCCB';
+  ctx.strokeStyle = selected ? palette.brand : palette.frameStroke;
   ctx.lineWidth = selected ? 1.6 : 1;
   ctx.stroke();
-  ctx.fillStyle = BRAND;
+  ctx.fillStyle = palette.brand;
   ctx.beginPath();
   ctx.arc(item.x + 12, y + pillHeight / 2, 3, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = INK;
+  ctx.fillStyle = palette.ink;
   ctx.textBaseline = 'middle';
   ctx.fillText(title, item.x + 21, y + pillHeight / 2 + 0.5);
   ctx.restore();
@@ -432,16 +574,17 @@ function drawFrame(
   ctx: CanvasRenderingContext2D,
   item: FrameItem,
   selected: boolean,
+  palette: Palette,
 ): void {
   ctx.save();
   roundRect(ctx, item.x, item.y, item.w, item.h, 10);
-  ctx.fillStyle = item.fill || PAPER_LIGHT;
+  ctx.fillStyle = item.fill || palette.frameFill;
   ctx.fill();
-  ctx.strokeStyle = selected ? BRAND : '#E3DCCB';
+  ctx.strokeStyle = selected ? palette.brand : palette.frameStroke;
   ctx.lineWidth = selected ? 2 : 1.2;
   ctx.stroke();
   ctx.restore();
-  drawFrameTitle(ctx, item, selected);
+  drawFrameTitle(ctx, item, selected, palette);
 }
 
 function drawArrow(
@@ -469,34 +612,45 @@ function drawConnector(
   ctx: CanvasRenderingContext2D,
   item: ConnectorItem,
   board: Board,
+  options: RenderOptions,
 ): void {
-  const { a, b } = getConnectorEndpoints(item, board.items);
+  const palette = paletteFor(options.theme);
+  const points = connectorPathPoints(item, board.items);
+  if (points.length < 2) return;
+  const first = points[0];
+  const last = points[points.length - 1];
+  const beforeLast = points[points.length - 2];
+  const afterFirst = points[1];
   ctx.save();
   ctx.globalAlpha = item.opacity ?? 1;
-  ctx.strokeStyle = item.color;
-  ctx.fillStyle = item.color;
+  const ink = readableInk(item.color, options.theme ?? 'light');
+  ctx.strokeStyle = ink;
+  ctx.fillStyle = ink;
   ctx.lineWidth = item.strokeWidth;
   ctx.lineCap = 'round';
-  if (item.dashed) ctx.setLineDash([8, 6]);
+  ctx.lineJoin = 'round';
+  applyStrokeStyle(ctx, item, item.strokeWidth);
   ctx.beginPath();
-  ctx.moveTo(a.x, a.y);
-  ctx.lineTo(b.x, b.y);
+  ctx.moveTo(first.x, first.y);
+  for (let index = 1; index < points.length; index += 1) {
+    ctx.lineTo(points[index].x, points[index].y);
+  }
   ctx.stroke();
   ctx.setLineDash([]);
   const size = 11 + item.strokeWidth;
-  if (item.arrowEnd) drawArrow(ctx, b, a, size);
-  if (item.arrowStart) drawArrow(ctx, a, b, size);
+  if (item.arrowEnd) drawArrow(ctx, last, beforeLast, size);
+  if (item.arrowStart) drawArrow(ctx, first, afterFirst, size);
   if (item.label) {
-    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    const mid = connectorLabelPoint(item, board.items);
     ctx.font = fontString(12, 600);
     const width = ctx.measureText(item.label).width;
     roundRect(ctx, mid.x - width / 2 - 8, mid.y - 11, width + 16, 22, 6);
-    ctx.fillStyle = '#FFFDF7';
+    ctx.fillStyle = palette.surface;
     ctx.fill();
-    ctx.strokeStyle = '#E3DCCB';
+    ctx.strokeStyle = palette.frameStroke;
     ctx.lineWidth = 1;
     ctx.stroke();
-    ctx.fillStyle = INK;
+    ctx.fillStyle = palette.ink;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(item.label, mid.x, mid.y + 0.5);
@@ -513,34 +667,35 @@ function drawSelection(
   const selected = new Set(options.selected ?? []);
   if (selected.size === 0) return;
   const zoom = options.viewport.zoom;
+  const palette = paletteFor(options.theme);
   ctx.save();
-  ctx.strokeStyle = BRAND;
+  ctx.strokeStyle = palette.brand;
   ctx.lineWidth = 1.8 / zoom;
   for (const item of board.items) {
     if (!selected.has(item.id)) continue;
     if (isConnector(item)) {
-      const { a, b } = getConnectorEndpoints(item, board.items);
+      const points = connectorPathPoints(item, board.items);
       ctx.save();
-      ctx.strokeStyle = 'rgba(14, 91, 79, 0.35)';
+      ctx.strokeStyle = palette.brand;
+      ctx.globalAlpha = 0.32;
       ctx.lineWidth = 6 / zoom;
       ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let index = 1; index < points.length; index += 1) {
+        ctx.lineTo(points[index].x, points[index].y);
+      }
       ctx.stroke();
       ctx.restore();
-      for (const point of [a, b]) {
+      for (const point of [points[0], points[points.length - 1]]) {
         ctx.beginPath();
         ctx.arc(point.x, point.y, 5 / zoom, 0, Math.PI * 2);
-        ctx.fillStyle = '#FFFDF7';
+        ctx.fillStyle = palette.surface;
         ctx.fill();
         ctx.stroke();
       }
       continue;
     }
     ctx.strokeRect(item.x, item.y, item.w, item.h);
-    if (item.type === 'frame') {
-      // Frame title is outside the body; outline the body only.
-    }
   }
   if (selected.size === 1) {
     const item = board.items.find((candidate) => selected.has(candidate.id));
@@ -557,7 +712,7 @@ function drawSelection(
       ];
       const size = 8 / zoom;
       for (const point of points) {
-        ctx.fillStyle = '#FFFDF7';
+        ctx.fillStyle = palette.surface;
         ctx.fillRect(point.x - size / 2, point.y - size / 2, size, size);
         ctx.strokeRect(point.x - size / 2, point.y - size / 2, size, size);
       }
@@ -569,10 +724,12 @@ function drawSelection(
 function drawComments(
   ctx: CanvasRenderingContext2D,
   board: Board,
+  options: RenderOptions,
 ): void {
+  const palette = paletteFor(options.theme);
   board.comments.forEach((comment, index) => {
     ctx.save();
-    ctx.shadowColor = 'rgba(22, 33, 30, 0.18)';
+    ctx.shadowColor = palette.shadow;
     ctx.shadowBlur = 10;
     ctx.shadowOffsetY = 3;
     ctx.beginPath();
@@ -582,10 +739,10 @@ function drawComments(
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
     ctx.shadowOffsetY = 0;
-    ctx.strokeStyle = '#FFFDF7';
+    ctx.strokeStyle = palette.surface;
     ctx.lineWidth = 2;
     ctx.stroke();
-    ctx.fillStyle = '#FFFDF7';
+    ctx.fillStyle = palette.surface;
     ctx.font = fontString(11, 700);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -599,17 +756,18 @@ function drawEmptyState(
   width: number,
   height: number,
   preview: boolean,
+  palette: Palette,
 ): void {
   const centerX = width / 2;
   const centerY = height / 2;
   ctx.save();
   ctx.globalAlpha = preview ? 0.75 : 0.9;
   ctx.textAlign = 'center';
-  ctx.fillStyle = 'rgba(22, 33, 30, 0.28)';
+  ctx.fillStyle = palette.muted;
   ctx.font = fontString(preview ? 15 : 20, 500, 'serif');
   ctx.fillText('Un lienzo en blanco para pensar', centerX, centerY - 6);
   ctx.font = fontString(preview ? 11 : 13, 500);
-  ctx.fillStyle = 'rgba(22, 33, 30, 0.35)';
+  ctx.fillStyle = palette.muted;
   ctx.fillText(
     preview ? 'Empieza con una nota' : 'Haz doble clic o elige una herramienta para empezar',
     centerX,
@@ -624,13 +782,28 @@ export function renderBoard(
   options: RenderOptions,
 ): void {
   const { width, height, dpr, viewport, preview = false } = options;
+  const palette = paletteFor(options.theme);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, width * dpr, height * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = preview ? PAPER_LIGHT : PAPER;
-  ctx.fillRect(0, 0, width, height);
-  if (!preview) drawDots(ctx, width, height, viewport, board.background === 'grid');
-  if (board.items.length === 0) drawEmptyState(ctx, width, height, preview);
+  if (!options.transparent) {
+    ctx.fillStyle = preview ? palette.paperLight : palette.paper;
+    ctx.fillRect(0, 0, width, height);
+    if (!preview) {
+      drawDots(
+        ctx,
+        width,
+        height,
+        viewport,
+        board.background === 'grid',
+        palette,
+        board.gridSize ?? 24,
+      );
+    }
+  }
+  if (board.items.length === 0 && !options.transparent) {
+    drawEmptyState(ctx, width, height, preview, palette);
+  }
 
   ctx.save();
   ctx.translate(viewport.x, viewport.y);
@@ -645,7 +818,7 @@ export function renderBoard(
   const frames = board.items.filter(
     (item): item is FrameItem => item.type === 'frame',
   );
-  for (const frame of frames) drawFrame(ctx, frame, selected.has(frame.id));
+  for (const frame of frames) drawFrame(ctx, frame, selected.has(frame.id), palette);
   for (const item of board.items) {
     if (item.type === 'frame') continue;
     if (item.type === 'sticky') drawSticky(ctx, item, options);
@@ -653,7 +826,7 @@ export function renderBoard(
     else if (item.type === 'text') drawText(ctx, item, options);
     else if (item.type === 'draw') drawDraw(ctx, item, options);
     else if (item.type === 'image') drawImageItem(ctx, item, options);
-    else if (item.type === 'connector') drawConnector(ctx, item, board);
+    else if (item.type === 'connector') drawConnector(ctx, item, board, options);
   }
 
   if (options.draft) {
@@ -662,9 +835,9 @@ export function renderBoard(
     const draft = options.draft;
     if (draft.type === 'sticky') drawSticky(ctx, draft, { ...options, editingId: null });
     else if (draft.type === 'shape') drawShape(ctx, draft, { ...options, editingId: null });
-    else if (draft.type === 'frame') drawFrame(ctx, draft, true);
+    else if (draft.type === 'frame') drawFrame(ctx, draft, true, palette);
     else if (draft.type === 'draw') drawDraw(ctx, draft, options);
-    else if (draft.type === 'connector') drawConnector(ctx, draft, board);
+    else if (draft.type === 'connector') drawConnector(ctx, draft, board, options);
     ctx.restore();
   }
 
@@ -688,13 +861,16 @@ export function renderBoard(
     ctx.restore();
   }
 
-  if (options.comments) drawComments(ctx, board);
+  if (options.comments) drawComments(ctx, board, options);
 
   if (options.marquee) {
     const marquee = options.marquee;
     ctx.save();
-    ctx.fillStyle = 'rgba(14, 91, 79, 0.08)';
-    ctx.strokeStyle = BRAND;
+    ctx.fillStyle = palette.brand;
+    ctx.globalAlpha = 0.1;
+    ctx.fillRect(marquee.x, marquee.y, marquee.w, marquee.h);
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = palette.brand;
     ctx.lineWidth = 1.2 / viewport.zoom;
     ctx.setLineDash([6 / viewport.zoom, 4 / viewport.zoom]);
     ctx.fillRect(marquee.x, marquee.y, marquee.w, marquee.h);
@@ -710,7 +886,7 @@ export function renderBoardToCanvas(
   canvas: HTMLCanvasElement,
   board: Board,
   viewport: Viewport,
-  options: { preview?: boolean; comments?: boolean } = {},
+  options: { preview?: boolean; comments?: boolean; theme?: Theme } = {},
 ): void {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const width = canvas.clientWidth || canvas.width;
@@ -726,6 +902,7 @@ export function renderBoardToCanvas(
     viewport,
     preview: options.preview,
     comments: options.comments,
+    theme: options.theme,
     selected: [],
   });
 }

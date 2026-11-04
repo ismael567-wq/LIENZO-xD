@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { Board, BoardItem, FrameItem } from '../types';
 import { useLienzo } from '../store/boardStore';
 import { worldToScreen } from '../lib/geometry';
-import { FONT_DISPLAY, FONT_UI } from '../lib/theme';
+import { FONT_DISPLAY, FONT_MONO, FONT_UI, readableInk } from '../lib/theme';
 
 interface TextEditorProps {
   board: Board;
@@ -88,13 +88,21 @@ function BodyTextEditor({
     ? Math.max(12, Math.min(20, item.w * 0.1)) * zoom
     : 18 * zoom;
   const fontFamily =
-    item.type === 'text' && item.fontFamily === 'serif' ? FONT_DISPLAY : FONT_UI;
+    item.type === 'text'
+      ? item.fontFamily === 'serif'
+        ? FONT_DISPLAY
+        : item.fontFamily === 'mono'
+          ? FONT_MONO
+          : FONT_UI
+      : FONT_UI;
+  const fontStyle = item.type === 'text' && item.italic ? 'italic' : 'normal';
+  const theme = useLienzo((state) => state.theme);
   const color =
     item.type === 'sticky'
       ? item.textColor
       : item.type === 'shape'
         ? item.textColor
-        : item.color;
+        : readableInk(item.color, theme);
 
   return (
     <div
@@ -109,6 +117,7 @@ function BodyTextEditor({
         fontSize: item.fontSize * zoom,
         lineHeight: 1.35,
         fontFamily,
+        fontStyle,
         fontWeight: item.type === 'text' ? item.fontWeight : 500,
         color,
         textAlign: isShape ? 'center' : item.type === 'text' ? item.align : 'left',

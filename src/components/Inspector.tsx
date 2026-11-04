@@ -1,5 +1,6 @@
 import {
   ArrowUpRight,
+  Boxes,
   Check,
   Circle,
   Copy,
@@ -15,6 +16,7 @@ import {
   StickyNote,
   Trash2,
   Type,
+  Ungroup,
   Unlock,
   X,
 } from 'lucide-react';
@@ -171,6 +173,8 @@ export function Inspector({ board, onClose, onImageReplace, onTemplates }: Inspe
   const sendToBack = useLienzo((state) => state.sendToBack);
   const alignSelected = useLienzo((state) => state.alignSelected);
   const distributeSelected = useLienzo((state) => state.distributeSelected);
+  const groupSelected = useLienzo((state) => state.groupSelected);
+  const ungroupSelected = useLienzo((state) => state.ungroupSelected);
   const openTemplates = onTemplates;
   const setTool = useLienzo((state) => state.setTool);
   const toggleComment = useLienzo((state) => state.toggleComment);
@@ -313,6 +317,25 @@ export function Inspector({ board, onClose, onImageReplace, onTemplates }: Inspe
                     value={single.fill}
                     onChange={(fill) => updateSelected({ fill })}
                   />
+                  <div className="segmented segmented-wrap">
+                    {(
+                      [
+                        ['solid', 'Sólido'],
+                        ['hachure', 'Rayado'],
+                        ['cross-hatch', 'Cruzado'],
+                        ['dots', 'Puntos'],
+                      ] as const
+                    ).map(([style, label]) => (
+                      <button
+                        key={style}
+                        type="button"
+                        className={(single.fillStyle ?? 'solid') === style ? 'is-active' : ''}
+                        onClick={() => updateSelected({ fillStyle: style })}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </Section>
                 <Section title="Borde">
                   <ColorRow
@@ -320,6 +343,40 @@ export function Inspector({ board, onClose, onImageReplace, onTemplates }: Inspe
                     value={single.stroke}
                     onChange={(stroke) => updateSelected({ stroke })}
                   />
+                  <div className="segmented segmented-wrap">
+                    {(
+                      [
+                        ['solid', 'Sólido'],
+                        ['dashed', 'Guiones'],
+                        ['dotted', 'Puntos'],
+                      ] as const
+                    ).map(([style, label]) => (
+                      <button
+                        key={style}
+                        type="button"
+                        className={(single.strokeStyle ?? 'solid') === style ? 'is-active' : ''}
+                        onClick={() => updateSelected({ strokeStyle: style })}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="segmented">
+                    <button
+                      type="button"
+                      className={(single.edge ?? 'round') === 'sharp' ? 'is-active' : ''}
+                      onClick={() => updateSelected({ edge: 'sharp', radius: 0 })}
+                    >
+                      Esquinas vivas
+                    </button>
+                    <button
+                      type="button"
+                      className={(single.edge ?? 'round') === 'round' ? 'is-active' : ''}
+                      onClick={() => updateSelected({ edge: 'round', radius: single.radius || 14 })}
+                    >
+                      Redondeadas
+                    </button>
+                  </div>
                   <div className="field-row">
                     <label className="range-field">
                       <span>Grosor</span>
@@ -416,10 +473,10 @@ export function Inspector({ board, onClose, onImageReplace, onTemplates }: Inspe
                       </select>
                     </label>
                   </div>
-                  <div className="segmented">
+                  <div className="segmented segmented-wrap">
                     <button
                       type="button"
-                      className={single.fontFamily !== 'serif' ? 'is-active' : ''}
+                      className={(single.fontFamily ?? 'sans') === 'sans' ? 'is-active' : ''}
                       onClick={() => updateSelected({ fontFamily: 'sans' })}
                     >
                       Sans
@@ -430,6 +487,20 @@ export function Inspector({ board, onClose, onImageReplace, onTemplates }: Inspe
                       onClick={() => updateSelected({ fontFamily: 'serif' })}
                     >
                       Serif
+                    </button>
+                    <button
+                      type="button"
+                      className={single.fontFamily === 'mono' ? 'is-active' : ''}
+                      onClick={() => updateSelected({ fontFamily: 'mono' })}
+                    >
+                      Mono
+                    </button>
+                    <button
+                      type="button"
+                      className={single.italic ? 'is-active' : ''}
+                      onClick={() => updateSelected({ italic: !single.italic })}
+                    >
+                      Cursiva
                     </button>
                   </div>
                   <div className="segmented">
@@ -489,6 +560,24 @@ export function Inspector({ board, onClose, onImageReplace, onTemplates }: Inspe
                     value={connector.color}
                     onChange={(color) => updateSelected({ color })}
                   />
+                  <div className="segmented segmented-wrap">
+                    {(
+                      [
+                        ['straight', 'Recta'],
+                        ['elbow', 'Codo'],
+                        ['curve', 'Curva'],
+                      ] as const
+                    ).map(([lineType, label]) => (
+                      <button
+                        key={lineType}
+                        type="button"
+                        className={(connector.lineType ?? 'straight') === lineType ? 'is-active' : ''}
+                        onClick={() => updateSelected({ lineType })}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                   <label className="range-field">
                     <span>Grosor</span>
                     <input
@@ -654,6 +743,19 @@ export function Inspector({ board, onClose, onImageReplace, onTemplates }: Inspe
                   Distribuir vertical
                 </button>
               </div>
+            </Section>
+            <Section title="Grupo">
+              <div className="segmented">
+                <button type="button" onClick={groupSelected}>
+                  <Boxes size={14} /> Agrupar
+                </button>
+                <button type="button" onClick={ungroupSelected}>
+                  <Ungroup size={14} /> Desagrupar
+                </button>
+              </div>
+              <p className="muted-copy">
+                Un grupo se selecciona, mueve y duplica como una sola unidad.
+              </p>
             </Section>
             <Section title="Estilo rápido">
               <StickyColorRow

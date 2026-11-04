@@ -147,14 +147,101 @@ export function getConnectorEndpoints(
   return { a, b };
 }
 
-export function connectorBounds(conn: ConnectorItem, items: BoardItem[]): Rect {
+/** Polyline used to draw and hit-test a connector. */
+export function connectorPathPoints(
+  conn: ConnectorItem,
+  items: BoardItem[],
+): Point[] {
   const { a, b } = getConnectorEndpoints(conn, items);
+  const lineType = conn.lineType ?? 'straight';
+  if (lineType === 'elbow') {
+    if (Math.abs(a.y - b.y) < 2) return [a, b];
+    if (Math.abs(a.x - b.x) < 2) return [a, b];
+    const midX = (a.x + b.x) / 2;
+    return [a, { x: midX, y: a.y }, { x: midX, y: b.y }, b];
+  }
+  if (lineType === 'curve') {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const length = Math.hypot(dx, dy) || 1;
+    const bend = Math.min(140, length * 0.2);
+    const control = {
+      x: (a.x + b.x) / 2 - (dy / length) * bend,
+      y: (a.y + b.y) / 2 + (dx / length) * bend,
+    };
+    const points: Point[] = [];
+    for (let step = 0; step <= 24; step += 1) {
+      const t = step / 24;
+      const mt = 1 - t;
+      points.push({
+        x: mt * mt * a.x + 2 * mt * t * control.x + t * t * b.x,
+        y: mt * mt * a.y + 2 * mt * t * control.y + t * t * b.y,
+      });
+    }
+    return points;
+  }
+  return [a, b];
+}
+
+export function distanceToConnector(
+  conn: ConnectorItem,
+  items: BoardItem[],
+  point: Point,
+): number {
+  const points = connectorPathPoints(conn, items);
+  let best = Number.POSITIVE_INFINITY;
+  for (let index = 1; index < points.length; index += 1) {
+    best = Math.min(best, distanceToSegment(point, points[index - 1], points[index]));
+  }
+  return best;
+}
+
+export function connectorLabelPoint(
+  conn: ConnectorItem,
+  items: BoardItem[],
+): Point {
+  const points = connectorPathPoints(conn, items);
+  if (points.length === 0) return { x: 0, y: 0 };
+  if (points.length === 1) return points[0];
+  let total = 0;
+  const lengths: number[] = [];
+  for (let index = 1; index < points.length; index += 1) {
+    const length = Math.hypot(
+      points[index].x - points[index - 1].x,
+      points[index].y - points[index - 1].y,
+    );
+    lengths.push(length);
+    total += length;
+  }
+  let target = total / 2;
+  for (let index = 1; index < points.length; index += 1) {
+    const length = lengths[index - 1];
+    if (target <= length) {
+      const t = length === 0 ? 0 : target / length;
+      return {
+        x: points[index - 1].x + (points[index].x - points[index - 1].x) * t,
+        y: points[index - 1].y + (points[index].y - points[index - 1].y) * t,
+      };
+    }
+    target -= length;
+  }
+  return points[points.length - 1];
+}
+
+export function connectorBounds(conn: ConnectorItem, items: BoardItem[]): Rect {
+  const points = connectorPathPoints(conn, items);
   const pad = conn.strokeWidth + 8;
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  const maxX = Math.max(...xs);
+  const maxY = Math.max(...ys);
   return {
-    x: Math.min(a.x, b.x) - pad,
-    y: Math.min(a.y, b.y) - pad,
-    w: Math.abs(a.x - b.x) + pad * 2,
-    h: Math.abs(a.y - b.y) + pad * 2,
+    x: minX - pad,
+    y: minY - pad,
+    w: maxX - minX + pad * 2,
+    h: maxY - minY + pad * 2,
   };
 }
 
@@ -169,8 +256,10 @@ export function hitTest(
     const item = items[index];
     if (item.locked) continue;
     if (isConnector(item)) {
-      const { a, b } = getConnectorEndpoints(item, items);
-      if (distanceToSegment(point, a, b) <= Math.max(8, item.strokeWidth) / zoom) {
+      if (
+        distanceToConnector(item, items, point) <=
+        Math.max(8, item.strokeWidth) / zoom
+      ) {
         return item;
       }
       continue;

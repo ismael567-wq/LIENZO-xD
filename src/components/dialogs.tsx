@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import {
   ArrowUpRight,
+  Boxes,
+  ClipboardCopy,
   Command,
   Download,
   FileJson,
@@ -8,6 +10,9 @@ import {
   Image as ImageIcon,
   Keyboard,
   LayoutGrid,
+  Magnet,
+  Maximize2,
+  Moon,
   MousePointer2,
   PenLine,
   Play,
@@ -16,7 +21,10 @@ import {
   Share2,
   Sparkles,
   StickyNote,
+  Sun,
   Type,
+  Ungroup,
+  Zap,
 } from 'lucide-react';
 import type { TemplateId } from '../types';
 import { currentBoardOf, useLienzo } from '../store/boardStore';
@@ -24,7 +32,7 @@ import { DEFAULT_BOARD_NAME } from '../lib/templates';
 import { Modal } from './Modal';
 import { TemplatePicker } from './TemplatePicker';
 import { Logo } from './Logo';
-import { exportBoardJSON, exportBoardPNG } from '../lib/export';
+import { copyBoardPNG, exportBoardJSON, exportBoardPNG } from '../lib/export';
 
 export function NewBoardDialog() {
   const open = useLienzo((state) => state.ui.newBoard);
@@ -113,6 +121,7 @@ const SHORTCUT_GROUPS: Array<{
       { keys: ['C'], label: 'Conector' },
       { keys: ['P'], label: 'Dibujar' },
       { keys: ['L'], label: 'Resaltador' },
+      { keys: ['K'], label: 'Puntero láser' },
       { keys: ['F'], label: 'Marco' },
       { keys: ['M'], label: 'Comentario' },
       { keys: ['I'], label: 'Insertar imagen' },
@@ -126,6 +135,9 @@ const SHORTCUT_GROUPS: Array<{
       { keys: ['⇧', '⌘', 'Z'], label: 'Rehacer' },
       { keys: ['⌘', 'D'], label: 'Duplicar selección' },
       { keys: ['⌘', 'A'], label: 'Seleccionar todo' },
+      { keys: ['⌘', 'G'], label: 'Agrupar selección' },
+      { keys: ['⇧', '⌘', 'G'], label: 'Desagrupar selección' },
+      { keys: ['G'], label: 'Activar o desactivar ajuste a cuadrícula' },
       { keys: ['Supr'], label: 'Eliminar selección' },
       { keys: ['Enter'], label: 'Editar texto seleccionado' },
       { keys: ['Doble clic'], label: 'Editar o crear una nota' },
@@ -319,13 +331,107 @@ export function CommandPalette() {
         },
       },
       {
+        id: 'theme',
+        label:
+          useLienzo.getState().theme === 'dark'
+            ? 'Cambiar a tema claro'
+            : 'Cambiar a tema oscuro',
+        hint: 'Interfaz y lienzo',
+        icon: useLienzo.getState().theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />,
+        group: 'Apariencia',
+        run: () => {
+          close();
+          useLienzo.getState().toggleTheme();
+        },
+      },
+      {
+        id: 'zen',
+        label: useLienzo.getState().zen
+          ? 'Salir del modo concentración'
+          : 'Entrar en modo concentración',
+        hint: 'Oculta los paneles',
+        icon: <Maximize2 size={17} />,
+        group: 'Apariencia',
+        run: () => {
+          close();
+          useLienzo.getState().toggleZen();
+        },
+      },
+      {
+        id: 'laser',
+        label: 'Activar puntero láser',
+        hint: 'Se desvanece al dibujar',
+        icon: <Zap size={17} />,
+        group: 'Herramientas',
+        run: () => {
+          close();
+          useLienzo.getState().setTool('laser');
+        },
+      },
+      {
+        id: 'snap',
+        label: useLienzo.getState().snapToGrid
+          ? 'Desactivar ajuste a cuadrícula'
+          : 'Activar ajuste a cuadrícula',
+        icon: <Magnet size={17} />,
+        group: 'Herramientas',
+        run: () => {
+          close();
+          const store = useLienzo.getState();
+          store.setSnapToGrid(!store.snapToGrid);
+        },
+      },
+      {
+        id: 'group',
+        label: 'Agrupar la selección',
+        icon: <Boxes size={17} />,
+        group: 'Selección',
+        run: () => {
+          close();
+          useLienzo.getState().groupSelected();
+        },
+      },
+      {
+        id: 'ungroup',
+        label: 'Desagrupar la selección',
+        icon: <Ungroup size={17} />,
+        group: 'Selección',
+        run: () => {
+          close();
+          useLienzo.getState().ungroupSelected();
+        },
+      },
+      {
+        id: 'copy-png',
+        label: 'Copiar el tablero como PNG',
+        hint: 'Al portapapeles',
+        icon: <ClipboardCopy size={17} />,
+        group: 'Tablero',
+        run: async () => {
+          close();
+          const store = useLienzo.getState();
+          try {
+            await copyBoardPNG(board, {
+              selected: store.selected.length > 0 ? store.selected : undefined,
+              theme: store.theme,
+            });
+            store.showToast('PNG copiado al portapapeles.', 'success');
+          } catch (error) {
+            store.showToast(
+              error instanceof Error ? error.message : 'No se pudo copiar la imagen.',
+              'error',
+            );
+          }
+        },
+      },
+      {
         id: 'png',
         label: 'Exportar como PNG',
         icon: <ImageIcon size={17} />,
         group: 'Tablero',
         run: async () => {
           close();
-          await exportBoardPNG(board);
+          await exportBoardPNG(board, { theme: useLienzo.getState().theme });
         },
       },
       {

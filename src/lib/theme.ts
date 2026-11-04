@@ -70,6 +70,53 @@ export const FONT_UI =
   '"Inter Variable", "Inter", "Segoe UI", system-ui, -apple-system, sans-serif';
 export const FONT_DISPLAY =
   '"Instrument Serif", "Iowan Old Style", Georgia, serif';
+export const FONT_MONO =
+  '"JetBrains Mono", "SFMono-Regular", "Cascadia Code", Consolas, monospace';
+
+const THEME_KEY = 'lienzo:theme';
+
+export function loadTheme(): 'light' | 'dark' {
+  if (typeof window === 'undefined') return 'light';
+  try {
+    return window.localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light';
+  } catch {
+    return 'light';
+  }
+}
+
+export function saveTheme(theme: 'light' | 'dark'): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(THEME_KEY, theme);
+  } catch {
+    // Storage may be unavailable in private mode; the UI still works.
+  }
+}
+
+export function applyTheme(theme: 'light' | 'dark'): void {
+  if (typeof document === 'undefined') return;
+  document.documentElement.dataset.theme = theme;
+  document.documentElement.style.colorScheme = theme;
+}
+
+/**
+ * Keep authored ink colors readable on the dark canvas. Dark strokes and text
+ * are lightened while keeping their hue; light colors pass through unchanged.
+ */
+export function readableInk(color: string, theme: 'light' | 'dark'): string {
+  if (theme !== 'dark') return color;
+  const match = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color.trim());
+  if (!match) return color;
+  let hex = match[1];
+  if (hex.length === 3) hex = hex.split('').map((part) => part + part).join('');
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  if (luminance >= 0.45) return color;
+  const lift = (channel: number) => Math.round(channel + (255 - channel) * 0.68);
+  return `rgb(${lift(r)}, ${lift(g)}, ${lift(b)})`;
+}
 
 export function userColor(seed: string): string {
   let hash = 0;

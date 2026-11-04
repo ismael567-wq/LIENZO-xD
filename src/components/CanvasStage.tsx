@@ -48,6 +48,7 @@ interface CanvasStageProps {
   readOnly?: boolean;
   clip?: Rect | null;
   onCommentPoint: (point: Point) => void;
+  onContextMenu?: (point: Point, item: BoardItem | null, screen: Point) => void;
 }
 
 type MoveTarget = { id: string; x: number; y: number };
@@ -108,6 +109,10 @@ type Gesture =
       erased: Set<string>;
     }
   | {
+      kind: 'laser';
+      pointerId: number;
+    }
+  | {
       kind: 'pinch';
       startDistance: number;
       startMid: Point;
@@ -145,6 +150,7 @@ function computeSnap(
   zoom: number,
   grid: boolean,
   disabled: boolean,
+  gridSize = 8,
 ): SnapResult {
   if (disabled) return { dx, dy, guides: { x: [], y: [] } };
   let nextDx = dx;
@@ -190,14 +196,14 @@ function computeSnap(
     nextDx += bestX.delta;
     guidesX.push(bestX.guide);
   } else if (grid) {
-    const snapped = snapValue(moving.x, 8);
+    const snapped = snapValue(moving.x, gridSize);
     nextDx += snapped - moving.x;
   }
   if (bestY) {
     nextDy += bestY.delta;
     guidesY.push(bestY.guide);
   } else if (grid) {
-    const snapped = snapValue(moving.y, 8);
+    const snapped = snapValue(moving.y, gridSize);
     nextDy += snapped - moving.y;
   }
   return { dx: nextDx, dy: nextDy, guides: { x: guidesX, y: guidesY } };
@@ -214,6 +220,7 @@ export function CanvasStage({
   readOnly = false,
   clip = null,
   onCommentPoint,
+  onContextMenu,
 }: CanvasStageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -232,6 +239,9 @@ export function CanvasStage({
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [cursor, setCursor] = useState('default');
   const [spaceDown, setSpaceDown] = useState(false);
+  const theme = useLienzo((state) => state.theme);
+  const laserRef = useRef<Array<{ x: number; y: number; at: number }>>([]);
+  const laserRafRef = useRef(0);
 
   const stickyCount = useMemo(
     () => board.items.filter((item) => item.type === 'sticky').length,
@@ -261,6 +271,7 @@ export function CanvasStage({
       height: size.h,
       dpr,
       viewport,
+      theme,
       selected,
       editingId,
       marquee,
@@ -271,11 +282,80 @@ export function CanvasStage({
       clip,
       onImageLoad: requestDraw,
     });
+    const laser = laserRef.current;
+    if (laser.length > 0) {
+      const now = performance.now();
+      const alive = laser.filter((point) => now - point.at < 1100);
+      laserRef.current = alive;
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      for (let index = 1; index < alive.length; index += 1) {
+        const previous = alive[index - 1];
+        const point = alive[index];
+        const age = Math.min(1, (now - point.at) / 1100);
+        const alpha = (1 - age) * 0.9;
+        if (alpha <= 0.02) continue;
+        const from = {
+          x: previous.x * viewport.zoom + viewport.x,
+          y: previous.y * viewport.zoom + viewport.y,
+        };
+        const to = {
+          x: point.x * viewport.zoom + viewport.x,
+          y: point.y * viewport.zoom + viewport.y,
+        };
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = theme === 'dark' ? '#63D6BE' : '#E04F2F';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(to.x, to.y);
+        ctx.stroke();
+      }
+      const tip = alive[alive.length - 1];
+      if (tip) {
+        const screen = {
+          x: tip.x * viewport.zoom + viewport.x,
+          y: tip.y * viewport.zoom + viewport.y,
+        };
+        ctx.globalAlpha = 0.28;
+        ctx.fillStyle = theme === 'dark' ? '#63D6BE' : '#E04F2F';
+        ctx.beginPath();
+        ctx.arc(screen.x, screen.y, 13, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 0.95;
+        ctx.beginPath();
+        ctx.arc(screen.x, screen.y, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
   };
+
+  const tickLaser = useCallback(() => {
+    if (laserRafRef.current) return;
+    laserRafRef.current = requestAnimationFrame(function tick() {
+      laserRafRef.current = 0;
+      const now = performance.now();
+      const alive = laserRef.current.filter((point) => now - point.at < 1100);
+      laserRef.current = alive;
+      requestDraw();
+      if (alive.length > 0) {
+        laserRafRef.current = requestAnimationFrame(tick);
+      }
+    });
+  }, [requestDraw]);
 
   useEffect(() => {
     requestDraw();
-  }, [board, viewport, selected, editingId, marquee, draft, hoveredId, guides, size, clip, requestDraw]);
+  }, [board, viewport, selected, editingId, marquee, draft, hoveredId, guides, size, clip, theme, requestDraw]);
+
+  useEffect(
+    () => () => {
+      if (laserRafRef.current) cancelAnimationFrame(laserRafRef.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     const container = containerRef.current;
@@ -354,6 +434,7 @@ export function CanvasStage({
       tool === 'connector' ||
       tool === 'pen' ||
       tool === 'highlighter' ||
+      tool === 'laser' ||
       tool === 'comment' ||
       tool === 'eraser'
     ) {
@@ -374,7 +455,11 @@ export function CanvasStage({
     if (event.button !== 0 && event.pointerType === 'mouse') return;
     const canvas = canvasRef.current;
     if (!canvas) return;
-    canvas.setPointerCapture(event.pointerId);
+    try {
+      canvas.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture can fail if the pointer was already released.
+    }
     const screen = getScreenPoint(event);
     pointersRef.current.set(event.pointerId, screen);
     if (pointersRef.current.size === 2) {
@@ -413,6 +498,12 @@ export function CanvasStage({
       };
       gestureRef.current = gesture;
       eraseAt(world, gesture);
+      return;
+    }
+    if (state.tool === 'laser') {
+      laserRef.current = [{ x: world.x, y: world.y, at: performance.now() }];
+      gestureRef.current = { kind: 'laser', pointerId: event.pointerId };
+      tickLaser();
       return;
     }
     if (state.tool === 'pen' || state.tool === 'highlighter') {
@@ -664,6 +755,7 @@ export function CanvasStage({
         state.viewport.zoom,
         snapToGrid,
         event.altKey,
+        state.gridSize,
       );
       dx = snapped.dx;
       dy = snapped.dy;
@@ -781,6 +873,17 @@ export function CanvasStage({
       return;
     }
 
+    if (gesture.kind === 'laser') {
+      const last = laserRef.current[laserRef.current.length - 1];
+      if (last && distance(last, world) < 1.2) return;
+      laserRef.current = [
+        ...laserRef.current.slice(-120),
+        { x: world.x, y: world.y, at: performance.now() },
+      ];
+      tickLaser();
+      return;
+    }
+
     if (gesture.kind === 'connector') {
       const hit = hitTest(board.items, world, state.viewport.zoom);
       const to: Anchor = hit
@@ -854,6 +957,8 @@ export function CanvasStage({
       }
     } else if (gesture.kind === 'marquee' && marquee) {
       state.selectInRect(marquee, gesture.additive);
+    } else if (gesture.kind === 'laser') {
+      tickLaser();
     }
 
     gestureRef.current = null;
@@ -874,6 +979,21 @@ export function CanvasStage({
     setMarquee(null);
     setGuides({ x: [], y: [] });
     setCursor(baseCursor());
+  };
+
+  const onContextMenuEvent = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    event.preventDefault();
+    if (readOnly) return;
+    const screen = getScreenPoint(event);
+    const world = getWorldPoint(screen);
+    const state = useLienzo.getState();
+    const hit = hitTest(board.items, world, state.viewport.zoom);
+    if (hit) {
+      if (!state.selected.includes(hit.id)) state.select([hit.id]);
+    } else {
+      state.clearSelection();
+    }
+    onContextMenu?.(world, hit, { x: event.clientX, y: event.clientY });
   };
 
   const onDoubleClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -939,7 +1059,7 @@ export function CanvasStage({
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}
         onDoubleClick={onDoubleClick}
-        onContextMenu={(event) => event.preventDefault()}
+        onContextMenu={onContextMenuEvent}
       />
     </div>
   );

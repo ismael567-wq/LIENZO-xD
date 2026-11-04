@@ -1,6 +1,6 @@
-import type { Board } from '../types';
+import type { Board, Theme } from '../types';
 import { boardContentBounds, renderBoard } from './canvasRenderer';
-import { fitViewport } from './geometry';
+import { boundsOfItems, fitViewport } from './geometry';
 import { boardToFile } from './storage';
 
 export function safeFileName(name: string): string {
@@ -38,16 +38,40 @@ export function exportBoardJSON(board: Board): void {
   );
 }
 
-export async function exportBoardPNG(board: Board): Promise<void> {
-  const bounds = boardContentBounds(board);
+export interface PngExportOptions {
+  /** Export only these element ids instead of the whole board. */
+  selected?: string[];
+  theme?: Theme;
+  /** Skip comments and the paper background for a transparent PNG. */
+  transparent?: boolean;
+  /** Render at this multiplier instead of the automatic one. */
+  scale?: number;
+}
+
+function scopedBoard(board: Board, selected?: string[]): Board {
+  if (!selected || selected.length === 0) return board;
+  const ids = new Set(selected);
+  return { ...board, items: board.items.filter((item) => ids.has(item.id)) };
+}
+
+export async function renderBoardPNGBlob(
+  board: Board,
+  options: PngExportOptions = {},
+): Promise<Blob> {
+  const scoped = scopedBoard(board, options.selected);
+  const selectionMode = Boolean(options.selected && options.selected.length > 0);
+  const bounds = selectionMode
+    ? boundsOfItems(scoped.items)
+    : boardContentBounds(scoped);
   const padding = 72;
-  const width = Math.max(1200, Math.ceil((bounds?.w ?? 1200) + padding * 2));
-  const height = Math.max(800, Math.ceil((bounds?.h ?? 800) + padding * 2));
+  const width = Math.max(selectionMode ? 200 : 1200, Math.ceil((bounds?.w ?? 1200) + padding * 2));
+  const height = Math.max(selectionMode ? 200 : 800, Math.ceil((bounds?.h ?? 800) + padding * 2));
   const maxDimension = 4200;
-  const scale = Math.min(2, maxDimension / Math.max(width, height));
+  const autoScale = Math.min(2, maxDimension / Math.max(width, height));
+  const scale = options.scale ?? autoScale;
   const canvas = document.createElement('canvas');
-  canvas.width = Math.floor(width * scale);
-  canvas.height = Math.floor(height * scale);
+  canvas.width = Math.max(1, Math.floor(width * scale));
+  canvas.height = Math.max(1, Math.floor(height * scale));
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('No se pudo preparar la exportación.');
   const viewport = fitViewport(
@@ -57,22 +81,45 @@ export async function exportBoardPNG(board: Board): Promise<void> {
     padding,
     1,
   );
-  renderBoard(ctx, board, {
+  renderBoard(ctx, scoped, {
     width,
     height,
     dpr: scale,
     viewport,
-    comments: true,
+    theme: options.theme,
+    transparent: options.transparent,
+    preview: false,
+    comments: !options.transparent,
     selected: [],
   });
-  const blob = await new Promise<Blob>((resolve, reject) => {
+  return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
       (result) =>
         result ? resolve(result) : reject(new Error('No se pudo generar el PNG.')),
       'image/png',
     );
   });
-  downloadBlob(blob, `${safeFileName(board.name)}.png`);
+}
+
+export async function exportBoardPNG(
+  board: Board,
+  options: PngExportOptions = {},
+): Promise<void> {
+  const blob = await renderBoardPNGBlob(board, options);
+  const suffix = options.selected && options.selected.length > 0 ? '-seleccion' : '';
+  downloadBlob(blob, `${safeFileName(board.name)}${suffix}.png`);
+}
+
+/** Copy a PNG of the board (or the selection) to the system clipboard. */
+export async function copyBoardPNG(
+  board: Board,
+  options: PngExportOptions = {},
+): Promise<void> {
+  if (typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) {
+    throw new Error('Este navegador no permite copiar imágenes al portapapeles.');
+  }
+  const blob = await renderBoardPNGBlob(board, options);
+  await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   boundsOfItems,
+  connectorLabelPoint,
+  connectorPathPoints,
+  distanceToConnector,
   edgePoint,
   fitViewport,
   getConnectorEndpoints,
@@ -119,5 +122,29 @@ describe('geometry', () => {
       { ...a, id: 'f1', type: 'frame', x: 0, y: 100, title: 'A', updatedAt: 1 },
     ];
     expect(getFrameSlides(frames).map((slide) => slide.x)).toEqual([0, 500]);
+  });
+
+  it('builds straight, elbow and curved connector paths', () => {
+    const a = shape('a', 0, 0);
+    const b = shape('b', 400, 300);
+    const c = connector('a', 'b');
+    const straight = connectorPathPoints(c, [a, b]);
+    expect(straight).toHaveLength(2);
+    const elbow = connectorPathPoints({ ...c, lineType: 'elbow' }, [a, b]);
+    expect(elbow).toHaveLength(4);
+    const curve = connectorPathPoints({ ...c, lineType: 'curve' }, [a, b]);
+    expect(curve).toHaveLength(25);
+    expect(connectorLabelPoint({ ...c, lineType: 'curve' }, [a, b]).x).toBeGreaterThan(0);
+  });
+
+  it('hit-tests connector paths away from the straight line', () => {
+    const a = shape('a', 0, 0);
+    const b = shape('b', 400, 300);
+    const c = connector('a', 'b');
+    const curve = { ...c, lineType: 'curve' as const };
+    const straightDistance = distanceToConnector(c, [a, b], { x: 250, y: 150 });
+    const curveDistance = distanceToConnector(curve, [a, b], { x: 250, y: 150 });
+    expect(straightDistance).toBeGreaterThan(20);
+    expect(curveDistance).toBeGreaterThan(straightDistance + 20);
   });
 });

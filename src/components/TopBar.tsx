@@ -12,6 +12,9 @@ import {
   Info,
   Keyboard,
   Loader2,
+  Maximize2,
+  Minimize2,
+  Moon,
   MoreHorizontal,
   Play,
   Plus,
@@ -19,6 +22,7 @@ import {
   ShieldCheck,
   Sparkles,
   Star,
+  Sun,
   Trash2,
   Users,
   Wifi,
@@ -26,7 +30,7 @@ import {
 } from 'lucide-react';
 import type { Board } from '../types';
 import { useLienzo } from '../store/boardStore';
-import { exportBoardJSON, exportBoardPNG, safeFileName } from '../lib/export';
+import { copyBoardPNG, exportBoardJSON, exportBoardPNG, safeFileName } from '../lib/export';
 import { copyToClipboard } from '../lib/net';
 import { initials, Logo } from './Logo';
 
@@ -106,6 +110,13 @@ export function TopBar({ board }: TopBarProps) {
   const deleteBoard = useLienzo((state) => state.deleteBoard);
   const toggleFavorite = useLienzo((state) => state.toggleFavorite);
   const setBackground = useLienzo((state) => state.setBackground);
+  const theme = useLienzo((state) => state.theme);
+  const toggleTheme = useLienzo((state) => state.toggleTheme);
+  const zen = useLienzo((state) => state.zen);
+  const toggleZen = useLienzo((state) => state.toggleZen);
+  const selected = useLienzo((state) => state.selected);
+  const gridSize = useLienzo((state) => state.gridSize);
+  const setGridSize = useLienzo((state) => state.setGridSize);
   const startPresentation = useLienzo((state) => state.startPresentation);
   const setUi = useLienzo((state) => state.setUi);
   const showToast = useLienzo((state) => state.showToast);
@@ -123,14 +134,28 @@ export function TopBar({ board }: TopBarProps) {
     else setName(board.name);
   };
 
-  const handleExport = async (kind: 'png' | 'json') => {
+  const handleExport = async (kind: 'png' | 'json' | 'selection' | 'copy') => {
     setExportOpen(false);
     try {
       if (kind === 'json') {
         exportBoardJSON(board);
         showToast('Tablero exportado en JSON.', 'success');
+      } else if (kind === 'copy') {
+        await copyBoardPNG(board, {
+          selected: selected.length > 0 ? selected : undefined,
+          theme,
+        });
+        showToast(
+          selected.length > 0
+            ? 'Selección copiada como PNG.'
+            : 'Tablero copiado como PNG.',
+          'success',
+        );
+      } else if (kind === 'selection') {
+        await exportBoardPNG(board, { selected, theme });
+        showToast('PNG de la selección generado.', 'success');
       } else {
-        await exportBoardPNG(board);
+        await exportBoardPNG(board, { theme });
         showToast('PNG generado con todo el tablero.', 'success');
       }
     } catch (error) {
@@ -196,6 +221,24 @@ export function TopBar({ board }: TopBarProps) {
       </div>
 
       <div className="topbar-right">
+        <button
+          type="button"
+          className="icon-btn topbar-theme"
+          onClick={toggleTheme}
+          aria-label={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+          title={theme === 'dark' ? 'Tema claro' : 'Tema oscuro'}
+        >
+          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+        <button
+          type="button"
+          className={`icon-btn topbar-zen ${zen ? 'is-active' : ''}`}
+          onClick={toggleZen}
+          aria-label={zen ? 'Salir del modo concentración' : 'Modo concentración'}
+          title={zen ? 'Salir del modo concentración' : 'Modo concentración (oculta paneles)'}
+        >
+          {zen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+        </button>
         <Presence />
         <button
           type="button"
@@ -232,6 +275,22 @@ export function TopBar({ board }: TopBarProps) {
                 <ImageIcon size={16} />
                 <span>Imagen PNG</span>
                 <small>Alta resolución</small>
+              </button>
+              {selected.length > 0 ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => handleExport('selection')}
+                >
+                  <ImageIcon size={16} />
+                  <span>Solo la selección</span>
+                  <small>{selected.length} elementos</small>
+                </button>
+              ) : null}
+              <button type="button" role="menuitem" onClick={() => handleExport('copy')}>
+                <Copy size={16} />
+                <span>Copiar PNG</span>
+                <small>Al portapapeles</small>
               </button>
               <button type="button" role="menuitem" onClick={() => handleExport('json')}>
                 <FileJson size={16} />
@@ -330,6 +389,20 @@ export function TopBar({ board }: TopBarProps) {
                 >
                   <SquareIcon /> Liso
                 </button>
+              </div>
+              <div className="menu-label">Tamaño de cuadrícula</div>
+              <div className="grid-size-row">
+                {[16, 24, 32, 48].map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    className={gridSize === size ? 'is-active' : ''}
+                    onClick={() => setGridSize(size)}
+                    title={`Cuadrícula de ${size} px`}
+                  >
+                    {size}
+                  </button>
+                ))}
               </div>
               <div className="menu-separator" />
               <button

@@ -2,6 +2,34 @@
 
 Todas las versiones relevantes de Lienzo.
 
+## [Sin publicar] — 2026-11-04
+
+Mejoras de producto y de interfaz inspiradas en Excalidraw. Ver [análisis](docs/EXCALIDRAW-ANALISIS.md).
+
+### Añadido
+
+- Tema oscuro completo, con paleta propia en la interfaz y en el lienzo, persistencia local y exportación con el tema activo.
+- Barra de herramientas flotante inferior y dock móvil actualizado.
+- Acciones rápidas junto a la selección: duplicar, copiar PNG, agrupar, orden Z, bloquear y eliminar.
+- Menú contextual con clic derecho sobre el lienzo o sobre un elemento.
+- Puntero láser efímero con la tecla `K`.
+- Agrupación de elementos con `Ctrl/Cmd+G` y desagrupación con `Ctrl/Cmd+Shift+G`.
+- Rellenos sólido, rayado, cruzado y de puntos; bordes sólidos, discontinuos y punteados; esquinas vivas o redondeadas.
+- Conectores rectos, en codo y curvos, con etiqueta y hit testing sobre la ruta real.
+- Tipografía mono y cursiva para textos.
+- Exportación PNG de la selección, copia al portapapeles y fondo transparente.
+- Arrastrar y soltar imágenes sobre el lienzo.
+- Modo concentración sin paneles y salida con `Esc`.
+- Tamaño de cuadrícula configurable y ajuste con `G`.
+- Acciones nuevas en la paleta de comandos y en la hoja de atajos.
+- Pruebas de rutas de conector y de legibilidad de tintas en tema oscuro.
+
+### Corregido
+
+- Orden de hooks en las acciones rápidas al cambiar la selección.
+- El rastro del láser se limpia por completo al desvanecerse.
+- La captura de puntero ya no puede interrumpir la interacción si el puntero se liberó antes.
+
 ## [0.1.0-alpha.1] — 2026-11-01
 
 Primera versión alpha pública.

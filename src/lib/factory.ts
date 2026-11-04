@@ -91,6 +91,9 @@ export function newShape(
     radius: shape === 'rect' ? 14 : 0,
     fontSize: 16,
     textColor: '#16211E',
+    fillStyle: 'solid',
+    strokeStyle: 'solid',
+    edge: shape === 'rect' ? 'round' : 'sharp',
     updatedAt: now(),
   };
 }
@@ -173,6 +176,7 @@ export function newConnector(a: Anchor, b: Anchor): ConnectorItem {
     arrowStart: false,
     arrowEnd: true,
     label: '',
+    lineType: 'straight',
     updatedAt: now(),
     x: 0,
     y: 0,
@@ -205,6 +209,7 @@ export function duplicateItems(
     idMap.set(item.id, clone.id);
     return clone;
   });
+  const groupMap = new Map<string, string>();
   for (const clone of clones) {
     if (clone.type === 'connector') {
       if (clone.from.itemId && idMap.has(clone.from.itemId)) {
@@ -213,6 +218,14 @@ export function duplicateItems(
       if (clone.to.itemId && idMap.has(clone.to.itemId)) {
         clone.to.itemId = idMap.get(clone.to.itemId);
       }
+    }
+    if (clone.groupId) {
+      let nextGroup = groupMap.get(clone.groupId);
+      if (!nextGroup) {
+        nextGroup = uid(9);
+        groupMap.set(clone.groupId, nextGroup);
+      }
+      clone.groupId = nextGroup;
     }
   }
   return { items: clones, newIds: clones.map((item) => item.id) };
