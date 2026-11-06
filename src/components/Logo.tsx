@@ -17,23 +17,26 @@ export function Logo({
         aria-hidden="true"
         className="logo-mark"
       >
-        <rect width="32" height="32" rx="9" fill="currentColor" />
-        <path
-          d="M9.5 9.5V21.5H21"
-          stroke="#DDF06A"
-          strokeWidth="2.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+        {/* Teja de tiza con una sonrisa trazada a mano. */}
+        <rect
+          x="2.5"
+          y="2.5"
+          width="27"
+          height="27"
+          rx="8.5"
+          fill="var(--logo-tile, #f3f0e8)"
         />
+        <circle cx="11.6" cy="13.4" r="1.45" fill="var(--logo-ink, #1e1c19)" />
+        <circle cx="20.4" cy="13.4" r="1.45" fill="var(--logo-ink, #1e1c19)" />
         <path
-          d="M15 14.5L21.5 21"
-          stroke="#FFFDF7"
-          strokeWidth="2.2"
+          d="M9.7 18.1c1.3 3 3.7 4.8 6.3 4.8s5-1.8 6.3-4.8"
+          stroke="var(--logo-ink, #1e1c19)"
+          strokeWidth="2.3"
           strokeLinecap="round"
         />
-        <circle cx="22" cy="10.5" r="1.7" fill="#FFFDF7" />
+        <circle cx="25.4" cy="7.4" r="2.5" fill="var(--logo-spark, #c7ec4a)" />
       </svg>
-      {withWord ? <span className="logo-word">Lienzo</span> : null}
+      {withWord ? <span className="logo-word">tiza</span> : null}
     </span>
   );
 }

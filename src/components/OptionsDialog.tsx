@@ -6,6 +6,7 @@ import {
   Grid3X3,
   Loader2,
   Magnet,
+  Monitor,
   Moon,
   RefreshCw,
   Sparkles,
@@ -29,7 +30,7 @@ function statusLabel(status: ReturnType<typeof useUpdates.getState>['status']) {
     case 'error':
       return 'No se pudo comprobar la actualización.';
     default:
-      return 'Lienzo comprueba si hay actualizaciones al iniciar.';
+      return 'tiza comprueba si hay actualizaciones al iniciar.';
   }
 }
 
@@ -37,7 +38,8 @@ export function OptionsDialog() {
   const open = useLienzo((state) => state.ui.options);
   const setUi = useLienzo((state) => state.setUi);
   const theme = useLienzo((state) => state.theme);
-  const toggleTheme = useLienzo((state) => state.toggleTheme);
+  const themeMode = useLienzo((state) => state.themeMode);
+  const setThemeMode = useLienzo((state) => state.setThemeMode);
   const gridSize = useLienzo((state) => state.gridSize);
   const setGridSize = useLienzo((state) => state.setGridSize);
   const snapToGrid = useLienzo((state) => state.snapToGrid);
@@ -61,7 +63,7 @@ export function OptionsDialog() {
     <Modal
       title="Opciones"
       eyebrow="Tu espacio, a tu manera"
-      subtitle="Apariencia, lienzo y actualizaciones de Lienzo."
+      subtitle="Apariencia, pizarra y actualizaciones de tiza."
       onClose={() => setUi('options', false)}
       size="md"
     >
@@ -73,13 +75,27 @@ export function OptionsDialog() {
           </div>
           <div className="options-row">
             <div className="options-copy">
-              <strong>Tema {theme === 'dark' ? 'oscuro' : 'claro'}</strong>
-              <p>Cambia la interfaz y el lienzo al instante.</p>
+              <strong>Tema {theme === 'dark' ? 'noche' : 'día'}</strong>
+              <p>Sigue al sistema o fija día y noche. La noche es el tema principal de tiza.</p>
             </div>
-            <button type="button" className="btn btn-ghost" onClick={toggleTheme}>
-              {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-              {theme === 'dark' ? 'Usar claro' : 'Usar oscuro'}
-            </button>
+            <div className="segmented theme-segmented" role="group" aria-label="Tema de la interfaz">
+              {([
+                { mode: 'auto', label: 'Auto', icon: <Monitor size={14} /> },
+                { mode: 'light', label: 'Día', icon: <Sun size={14} /> },
+                { mode: 'dark', label: 'Noche', icon: <Moon size={14} /> },
+              ] as const).map((option) => (
+                <button
+                  key={option.mode}
+                  type="button"
+                  className={themeMode === option.mode ? 'is-active' : ''}
+                  aria-pressed={themeMode === option.mode}
+                  onClick={() => setThemeMode(option.mode)}
+                >
+                  {option.icon}
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -167,7 +183,7 @@ export function OptionsDialog() {
           {pending && latest ? (
             <div className="update-release">
               <div>
-                <strong>Lienzo {latest} ya está disponible</strong>
+                <strong>tiza {latest} ya está disponible</strong>
                 <p>
                   Descarga la nueva versión y tus tableros se conservarán. La app se cerrará
                   durante la instalación.
@@ -230,7 +246,7 @@ export function OptionsDialog() {
         </section>
 
         <p className="options-footnote">
-          <Grid3X3 size={13} /> Lienzo guarda tus tableros en este dispositivo. Las
+          <Grid3X3 size={13} /> tiza guarda tus tableros en este dispositivo. Las
           actualizaciones solo reemplazan la aplicación, nunca tus datos.
         </p>
       </div>

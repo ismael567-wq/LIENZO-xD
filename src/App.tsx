@@ -15,6 +15,10 @@ import { Toast } from './components/Toast';
 import { Logo } from './components/Logo';
 import { OptionsDialog } from './components/OptionsDialog';
 import { useUpdates } from './store/updateStore';
+import { applyTheme, resolveTheme, watchSystemTheme } from './lib/theme';
+import { BoardSearch } from './components/BoardSearch';
+import { HistoryDialog } from './components/HistoryDialog';
+import { FocusTimer } from './components/FocusTimer';
 
 function LoadingScreen() {
   return (
@@ -23,8 +27,8 @@ function LoadingScreen() {
         <Logo size={54} />
         <div className="loading-ring" />
       </div>
-      <h1>Lienzo</h1>
-      <p>Preparando tu espacio visual…</p>
+      <h1>tiza</h1>
+      <p>Preparando tu pizarra…</p>
     </div>
   );
 }
@@ -71,6 +75,16 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    return watchSystemTheme(() => {
+      const state = useLienzo.getState();
+      if (state.themeMode !== 'auto') return;
+      const theme = resolveTheme('auto');
+      applyTheme(theme);
+      useLienzo.setState({ theme });
+    });
+  }, []);
+
+  useEffect(() => {
     if (!ready || !board) return;
     const timer = setTimeout(() => {
       void useLienzo.getState().autoConnectIfServed();
@@ -83,6 +97,9 @@ export default function App() {
   return (
     <div className="app">
       {board ? <BoardView /> : <Dashboard />}
+      <BoardSearch />
+      <HistoryDialog />
+      <FocusTimer />
       <NewBoardDialog />
       <TemplateDialog />
       <ShareDialog />

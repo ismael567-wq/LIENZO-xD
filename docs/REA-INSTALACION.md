@@ -117,4 +117,4 @@ node rea/scripts/rea.mjs analyze-javascript-application C:\ruta\a\la\app --json
 
 ## 7. Nota sobre el repositorio
 
-El repositorio se clonó con `--depth 1` para conservar el código y la documentación sin descargar todo el historial. Los submódulos de terceros no se inicializaron; no son necesarios para ejecutar el CLI principal. La carpeta `rea/` se mantiene separada del proyecto Lienzo.
+El repositorio se clonó con `--depth 1` para conservar el código y la documentación sin descargar todo el historial. Los submódulos de terceros no se inicializaron; no son necesarios para ejecutar el CLI principal. La carpeta `rea/` se mantiene separada del proyecto tiza.

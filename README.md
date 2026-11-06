@@ -1,30 +1,45 @@
-# LIENZO xD
+# tiza
 
-**Pizarra visual colaborativa local-first para web, escritorio y móvil.** Sin cuentas, sin nube y sin fricción: tus tableros viven en tu dispositivo y se comparten en tu red local.
+**Pizarras en vivo.** Una pizarra visual colaborativa local-first para web, escritorio y móvil. Sin cuentas, sin nube y sin fricción: tus tableros viven en tu dispositivo y se comparten en tu red local.
 
 Repositorio: <https://github.com/ismael567-wq/LIENZO-xD> · Releases: <https://github.com/ismael567-wq/LIENZO-xD/releases>
 
-> **Versión `1.2.1`.** Sigue siendo una alpha funcional para probar y dar feedback, no para producción. El instalador de Windows no está firmado; SmartScreen puede pedir confirmación. Lee la [guía de uso](docs/GUIA-USO.md) y los [límites conocidos](docs/ARQUITECTURA.md#11-límites-conocidos).
+> **Versión `1.3.0`.** Alpha funcional para probar y dar feedback, no para producción. El instalador de Windows no está firmado; SmartScreen puede pedir confirmación. Lee la [guía de uso](docs/GUIA-USO.md) y los [límites conocidos](docs/ARQUITECTURA.md#11-límites-conocidos).
 
-![LIENZO xD — captura principal](docs/screenshots/portada.png)
+![tiza — captura principal](docs/screenshots/portada.png)
 
-Lienzo es una alternativa deliberadamente contenida a Miro: recupera el gesto de pensar en un lienzo infinito, pero elimina la dependencia de un SaaS, el registro y la facturación por asiento. Está construido desde cero con TypeScript, React y Canvas 2D.
+tiza es una alternativa deliberadamente contenida a Miro: recupera el gesto de pensar en un lienzo infinito, pero elimina la dependencia de un SaaS, el registro y la facturación por asiento. Está construido desde cero con TypeScript, React y Canvas 2D.
+
+## La identidad v2
+
+- **tiza / pizarras en vivo.** Nombre corto, descriptivo y memorable.
+- **Logo de sonrisa de tiza.** Una teja clara, dos ojos y una chispa lima; funciona a 16 px y en la barra superior.
+- **Noche como tema principal.** Fondo `#1E1C19`, superficies cálidas y lima para la acción. El tema día conserva la misma jerarquía.
+- **Selector auto / día / noche.** `auto` sigue la preferencia del sistema; la elección se recuerda y se aplica antes del primer pintado.
+- **Tipografía con carácter.** Space Grotesk para titulares, Inter para interfaz y JetBrains Mono para metadatos y atajos.
+- **Diseño verificable.** 48 combinaciones de contraste WCAG AA y objetivos táctiles de 44 px en dispositivos con puntero grueso.
+
+Más detalle en [tiza v2: rediseño y alcance](docs/TIZA-V2.md).
 
 ## Lo que puedes hacer
 
 - **Lienzo infinito** con pan, zoom, atajos y navegación táctil.
 - **Notas, formas, texto, dibujo, resaltador, imágenes, marcos y conectores.**
 - **Puntero láser** efímero para señalar sin dejar trazos.
-- **Tema claro y oscuro** que también cambia el lienzo, no solo la interfaz.
+- **Tema automático, claro y oscuro** que también cambia el lienzo, no solo la interfaz.
 - **Barra flotante inferior**, acciones rápidas sobre la selección y menú contextual.
 - **Selección múltiple**, agrupación, alineación, distribución, orden Z, bloqueo y duplicación.
+- **Búsqueda en la pizarra** con `Ctrl/Cmd+F` y salto al elemento encontrado.
+- **Historial de versiones** local, instantáneas automáticas y restauración con deshacer.
+- **Temporizador de foco** de 15, 25 o 50 minutos para sesiones sin distracciones.
+- **Bloqueo de pizarra** para revisar o presentar sin editar por accidente.
 - **Estilos de relleno y borde** (sólido, rayado, cruzado, puntos) y conectores rectos, en codo o curva.
 - **Edición en línea** de notas, textos y etiquetas de formas, con tipografías sans, serif y mono.
-- **9 plantillas** curadas: lluvia de ideas, retrospectiva, kanban, mapa mental, flujo, viaje del cliente, plan semanal y bienvenida.
+- **9 plantillas** curadas: bienvenida, lluvia de ideas, retrospectiva, kanban, mapa mental, flujo, viaje del cliente, plan semanal y pizarra en blanco.
 - **Comentarios anclados** con resolución y lista lateral.
 - **Presentación** recorriendo marcos como diapositivas y **modo concentración** sin paneles.
 - **Persistencia local** en IndexedDB y autosave.
-- **Exportar PNG/JSON**, PNG de la selección, copia al portapapeles, fondo transparente e importar archivos `.lienzo.json`.
+- **Exportar PNG/JSON**, PNG de la selección, copia al portapapeles, fondo transparente e importar archivos `.tiza.json`.
 - **Sala en vivo por LAN**: QR, enlace, presencia, cursores y sincronización en tiempo real.
 - **Web, escritorio y móvil** con la misma base de código.
 - **PWA instalable** y proyectos nativos Android/iOS con Capacitor.
@@ -43,29 +58,11 @@ Lienzo es una alternativa deliberadamente contenida a Miro: recupera el gesto de
 |---|---|
 | ![Plantillas](docs/screenshots/templates.png) | ![Presentación](docs/screenshots/presentation.png) |
 
+| Tema día · dashboard | Tema día · pizarra |
+|---|---|
+| ![Dashboard en tema día](docs/screenshots/dashboard-day.png) | ![Pizarra en tema día](docs/screenshots/board-day.png) |
+
 Más capturas en [`docs/screenshots/`](docs/screenshots/).
-
-## Descargar e instalar (Windows alpha)
-
-Los artefactos están en la sección **Releases** del repositorio:
-
-- **Instalador**: `Lienzo-Setup-1.2.1.exe`
-- **Portable**: `Lienzo-1.2.1-portable.exe`
-
-Si Windows muestra “Windows protegió tu PC”:
-
-1. Pulsa **Más información**.
-2. Pulsa **Ejecutar de todas formas**.
-
-Es normal: la alpha no tiene firma de código. El instalador crea accesos directos y un desinstalador; el portable no requiere instalación. Requiere Windows 10/11 de 64 bits.
-
-También puedes generarlos desde el código:
-
-```bash
-npm run desktop:installer   # release/Lienzo-Setup-<version>.exe
-npm run desktop:portable    # release/Lienzo-<version>-portable.exe
-npm run desktop:dist        # release/Lienzo-<version>-win.zip
-```
 
 ## Inicio rápido
 
@@ -92,7 +89,7 @@ npm run desktop:installer  # instalador NSIS alpha
 npm run desktop:portable   # ejecutable portable
 ```
 
-El servidor de sala se inicia dentro de Electron y elige automáticamente un puerto libre (8787–8799). Los artefactos de la alpha están en `release/` y en la sección **Releases** de GitHub.
+El servidor de sala se inicia dentro de Electron y elige automáticamente un puerto libre (8787–8799). Los artefactos se generan en `release/`.
 
 > En Windows, si tu entorno define `ELECTRON_RUN_AS_NODE`, usa `npm run desktop` (el lanzador lo elimina) o desactiva esa variable antes de abrir el `.exe`.
 
@@ -102,7 +99,7 @@ El servidor de sala se inicia dentro de Electron y elige automáticamente un pue
 
 1. Arranca `npm run server` en el ordenador.
 2. Abre `http://<IP-de-tu-PC>:8787` en el móvil, en la misma red.
-3. Usa “Añadir a pantalla de inicio”. La app funciona offline después de la primera carga.
+3. Usa «Añadir a pantalla de inicio». La app funciona offline después de la primera carga.
 
 **Capacitor (proyecto nativo):**
 
@@ -149,6 +146,7 @@ La sala se sirve desde tu equipo. Los tableros se guardan en `data/boards/` cuan
 | Imagen | `I` |
 | Borrar | `E` |
 | Ajuste a cuadrícula | `G` |
+| Buscar en la pizarra | `Ctrl/Cmd+F` |
 | Deshacer / rehacer | `Ctrl/Cmd+Z` / `Ctrl/Cmd+Shift+Z` |
 | Duplicar | `Ctrl/Cmd+D` |
 | Agrupar / desagrupar | `Ctrl/Cmd+G` / `Ctrl/Cmd+Shift+G` |
@@ -164,24 +162,45 @@ La sala se sirve desde tu equipo. Los tableros se guardan en `data/boards/` cuan
 - `electron/` arranca el servidor embebido y carga la app en una ventana.
 - `android/` e `ios/` son los proyectos Capacitor.
 - La persistencia es IndexedDB; la sala es opcional y usa last-write-wins por objeto.
+- Las versiones del historial viven en IndexedDB y se podan a 24 por pizarra.
 
 Más detalle en [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
+
+## Verificación
+
+```bash
+npm run typecheck
+npm test
+npm run build
+npm run contraste
+```
+
+- TypeScript sin errores.
+- 29 pruebas unitarias aprobadas.
+- Build de Vite + PWA correcto.
+- Auditoría de contraste: 48/48 combinaciones WCAG AA.
+- QA visual en navegador real a 1440×900 y 390×844, sin errores de consola.
+
+Resultados y comandos en [`docs/VERIFICACION.md`](docs/VERIFICACION.md).
 
 ## Documentación
 
 - [Guía de uso](docs/GUIA-USO.md): instalar, primeros pasos, LAN, móvil y resolución de problemas.
-- [Análisis de Miro](docs/ANALISIS-MIRO.md): producto, objetivos, GitHub, arquitectura pública, negocio y oportunidad.
-- [Análisis de Excalidraw](docs/EXCALIDRAW-ANALISIS.md): patrones de interfaz, modelo de datos, render y decisiones de esta tanda.
-- [Instalación de REA](docs/REA-INSTALACION.md): repo original, instalación, compilación y verificación del CLI.
+- [tiza v2](docs/TIZA-V2.md): identidad, sistema visual, funciones nuevas y alcance pendiente.
 - [Arquitectura](docs/ARQUITECTURA.md): modelo de datos, render, sync, plataformas y límites.
-- [Verificación](docs/VERIFICACION.md): pruebas, E2E, build, Electron y capturas.
-- [Changelog](CHANGELOG.md): historial de la alpha.
+- [Verificación](docs/VERIFICACION.md): pruebas, E2E, build, contraste y capturas.
+- [Changelog](CHANGELOG.md): historial de versiones.
+- [Análisis de Miro](docs/ANALISIS-MIRO.md): producto, objetivos y oportunidad.
+- [Análisis de Excalidraw](docs/EXCALIDRAW-ANALISIS.md): patrones de interfaz, modelo de datos y render.
+- [Instalación de REA](docs/REA-INSTALACION.md): repo original, instalación y verificación del CLI.
 
 ## Estado y límites
 
 Este es un **MVP alpha funcional**, no un clon completo de Miro. Funciona y está probado en web, escritorio y móvil (PWA), pero no incluye nube, cuentas, permisos enterprise, las 250+ integraciones ni IA generativa. La colaboración es LWW por objeto y está pensada para equipos pequeños en la misma red.
 
-Lista completa de límites y roadmap en [`docs/ARQUITECTURA.md#11-límites-conocidos`](docs/ARQUITECTURA.md#11-límites-conocidos).
+El rediseño visual v2 está aplicado. De las 90 ideas de los informes de producto se han implementado la identidad y una primera tanda de funciones v1.3: búsqueda, historial, temporizador y bloqueo. El resto del roadmap —exportación PDF/SVG, anclas laterales de conectores, arrastrar cualquier archivo, notas de voz o vídeo, flashcards y las familias v1.4/v2.0— sigue pendiente y está inventariado en [`docs/TIZA-V2.md`](docs/TIZA-V2.md#8-lo-que-queda-pendiente).
+
+Lista completa de límites en [`docs/ARQUITECTURA.md#11-límites-conocidos`](docs/ARQUITECTURA.md#11-límites-conocidos).
 
 ## Stack
 

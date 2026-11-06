@@ -15,7 +15,7 @@ export function safeFileName(name: string): string {
       .replace(/[úùüû]/g, 'u')
       .replace(/ñ/g, 'n')
       .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '') || 'lienzo'
+      .replace(/^-+|-+$/g, '') || 'tiza'
   );
 }
 
@@ -34,7 +34,7 @@ export function exportBoardJSON(board: Board): void {
   const payload = JSON.stringify(boardToFile(board), null, 2);
   downloadBlob(
     new Blob([payload], { type: 'application/json' }),
-    `${safeFileName(board.name)}.lienzo.json`,
+    `${safeFileName(board.name)}.tiza.json`,
   );
 }
 

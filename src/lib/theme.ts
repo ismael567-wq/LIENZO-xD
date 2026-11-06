@@ -1,5 +1,8 @@
-export const APP_NAME = 'Lienzo';
-export const APP_TAGLINE = 'Piensa sin bordes.';
+export const APP_NAME = 'tiza';
+export const APP_TAGLINE = 'pizarras en vivo';
+
+export type Theme = 'light' | 'dark';
+export type ThemeMode = 'auto' | 'light' | 'dark';
 
 export const STICKY_COLORS = [
   { name: 'Mantequilla', value: '#FFE58A', text: '#3D3418' },
@@ -69,41 +72,79 @@ export const USER_COLORS = [
 export const FONT_UI =
   '"Inter Variable", "Inter", "Segoe UI", system-ui, -apple-system, sans-serif';
 export const FONT_DISPLAY =
-  '"Instrument Serif", "Iowan Old Style", Georgia, serif';
+  '"Space Grotesk Variable", "Space Grotesk", "Inter Variable", "Segoe UI", system-ui, sans-serif';
 export const FONT_MONO =
-  '"JetBrains Mono", "SFMono-Regular", "Cascadia Code", Consolas, monospace';
+  '"JetBrains Mono Variable", "JetBrains Mono", "SFMono-Regular", "Cascadia Code", Consolas, monospace';
 
-const THEME_KEY = 'lienzo:theme';
+const THEME_KEY = 'tiza:theme-mode';
+const LEGACY_THEME_KEY = 'lienzo:theme';
 
-export function loadTheme(): 'light' | 'dark' {
-  if (typeof window === 'undefined') return 'light';
-  try {
-    return window.localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light';
-  } catch {
-    return 'light';
-  }
+export function isThemeMode(value: unknown): value is ThemeMode {
+  return value === 'auto' || value === 'light' || value === 'dark';
 }
 
-export function saveTheme(theme: 'light' | 'dark'): void {
-  if (typeof window === 'undefined') return;
+/**
+ * Night is the default identity of tiza. We only honour a stored choice
+ * (including the pre-rename `lienzo:theme` key) when it is valid.
+ */
+export function loadThemeMode(): ThemeMode {
+  if (typeof window === 'undefined') return 'dark';
   try {
-    window.localStorage.setItem(THEME_KEY, theme);
+    const stored = window.localStorage.getItem(THEME_KEY);
+    if (isThemeMode(stored)) return stored;
+    const legacy = window.localStorage.getItem(LEGACY_THEME_KEY);
+    if (legacy === 'light' || legacy === 'dark') return legacy;
   } catch {
     // Storage may be unavailable in private mode; the UI still works.
   }
+  return 'dark';
 }
 
-export function applyTheme(theme: 'light' | 'dark'): void {
+export function systemTheme(): Theme {
+  if (typeof window === 'undefined' || !window.matchMedia) return 'dark';
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+export function resolveTheme(mode: ThemeMode): Theme {
+  return mode === 'auto' ? systemTheme() : mode;
+}
+
+export function saveThemeMode(mode: ThemeMode): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(THEME_KEY, mode);
+    window.localStorage.removeItem(LEGACY_THEME_KEY);
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+export function applyTheme(theme: Theme): void {
   if (typeof document === 'undefined') return;
-  document.documentElement.dataset.theme = theme;
-  document.documentElement.style.colorScheme = theme;
+  const root = document.documentElement;
+  const changing = root.dataset.theme !== theme;
+  root.dataset.theme = theme;
+  root.style.colorScheme = theme;
+  if (changing) {
+    root.classList.add('theme-anim');
+    window.setTimeout(() => root.classList.remove('theme-anim'), 260);
+  }
+}
+
+/** Notify when the OS preference changes so `auto` can re-resolve. */
+export function watchSystemTheme(listener: (theme: Theme) => void): () => void {
+  if (typeof window === 'undefined' || !window.matchMedia) return () => {};
+  const media = window.matchMedia('(prefers-color-scheme: dark)');
+  const handler = (event: MediaQueryListEvent) => listener(event.matches ? 'dark' : 'light');
+  media.addEventListener('change', handler);
+  return () => media.removeEventListener('change', handler);
 }
 
 /**
  * Keep authored ink colors readable on the dark canvas. Dark strokes and text
  * are lightened while keeping their hue; light colors pass through unchanged.
  */
-export function readableInk(color: string, theme: 'light' | 'dark'): string {
+export function readableInk(color: string, theme: Theme): string {
   if (theme !== 'dark') return color;
   const match = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color.trim());
   if (!match) return color;

@@ -225,7 +225,7 @@ export function Inspector({ board, onClose, onImageReplace, onTemplates }: Inspe
             <>
               <span className="inspector-eyebrow">Este tablero</span>
               <h2 className="inspector-title">
-                <Palette size={15} /> Lienzo
+                <Palette size={15} /> Pizarra
               </h2>
             </>
           )}

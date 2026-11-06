@@ -68,7 +68,7 @@ export function saveServerUrl(url: string | null): void {
 }
 
 export type StoredBoardFile = {
-  app: 'lienzo';
+  app: 'tiza' | 'lienzo';
   version: 1;
   exportedAt: string;
   board: Board;
@@ -76,7 +76,7 @@ export type StoredBoardFile = {
 
 export function boardToFile(board: Board): StoredBoardFile {
   return {
-    app: 'lienzo',
+    app: 'tiza',
     version: 1,
     exportedAt: new Date().toISOString(),
     board,
@@ -95,7 +95,7 @@ export function parseBoardFile(text: string): Board {
     typeof candidate.name !== 'string' ||
     !Array.isArray(candidate.items)
   ) {
-    throw new Error('El archivo no parece un tablero de Lienzo.');
+    throw new Error('El archivo no parece una pizarra de tiza.');
   }
   return {
     ...candidate,

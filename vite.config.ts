@@ -17,12 +17,12 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Lienzo — pizarra visual local-first',
-        short_name: 'Lienzo',
+        name: 'tiza — pizarras en vivo',
+        short_name: 'tiza',
         description:
-          'Pizarra visual colaborativa que funciona en tu navegador, escritorio y móvil. Sin cuentas, sin nube.',
-        theme_color: '#0E5B4F',
-        background_color: '#F4F1E8',
+          'Pizarras en vivo: colaboración visual local-first en tu navegador, escritorio y móvil. Sin cuentas, sin nube.',
+        theme_color: '#1E1C19',
+        background_color: '#1E1C19',
         display: 'standalone',
         orientation: 'any',
         start_url: '/',
@@ -30,6 +30,12 @@ export default defineConfig({
         lang: 'es',
         categories: ['productivity', 'business', 'design'],
         icons: [
+          {
+            src: 'favicon.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any',
+          },
           {
             src: 'pwa-192.png',
             sizes: '192x192',

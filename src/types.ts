@@ -16,6 +16,7 @@ export type Tool =
 export type ShapeKind = 'rect' | 'ellipse' | 'diamond';
 export type BackgroundKind = 'dots' | 'grid' | 'plain';
 export type Theme = 'light' | 'dark';
+export type ThemeMode = 'auto' | 'light' | 'dark';
 export type FillStyle = 'solid' | 'hachure' | 'cross-hatch' | 'dots';
 export type StrokeStyle = 'solid' | 'dashed' | 'dotted';
 export type EdgeStyle = 'sharp' | 'round';
@@ -179,6 +180,8 @@ export interface Board {
   background: BackgroundKind;
   gridSize?: number;
   favorite?: boolean;
+  /** Bloquea la edición del lienzo sin impedir mover la vista. */
+  locked?: boolean;
 }
 
 export interface HistorySnapshot {
@@ -186,6 +189,7 @@ export interface HistorySnapshot {
   comments: CommentPin[];
   name: string;
   background: BackgroundKind;
+  locked?: boolean;
 }
 
 export interface Peer {

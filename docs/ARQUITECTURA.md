@@ -1,10 +1,10 @@
-# Arquitectura de Lienzo
+# Arquitectura de tiza
 
 > Documento técnico del prototipo funcional. Explica las decisiones, los límites y cómo extenderlo.
 
 ## 1. Visión
 
-Lienzo es una **pizarra visual local-first** con una sola base de código TypeScript/React para tres destinos:
+tiza es una **pizarra visual local-first** con una sola base de código TypeScript/React para tres destinos:
 
 ```mermaid
 flowchart LR
@@ -37,7 +37,7 @@ Principios:
 | Render | Canvas 2D | Miles de objetos sin la sobrecarga del DOM. |
 | Persistencia | IndexedDB (`idb-keyval`) | Datos estructurados, imágenes y offline. |
 | Iconos | Lucide | Set consistente y ligero. |
-| Tipografía | Inter Variable + Instrument Serif | Interfaz y personalidad editorial. |
+| Tipografía | Space Grotesk + Inter + JetBrains Mono | Titulares, interfaz y metadatos; fuentes locales y offline. |
 | Servidor | Node.js + `ws` | HTTP estático, API y WebSocket sin framework. |
 | Escritorio | Electron + electron-builder | Empaquetado Windows sin depender de toolchain nativo. |
 | Móvil | PWA + Capacitor 8 | Instalación desde navegador y proyectos Android/iOS. |
@@ -48,7 +48,7 @@ Principios:
 ## 3. Estructura del proyecto
 
 ```text
-lienzo/
+tiza/
 ├─ src/
 │  ├─ components/
 │  │  ├─ BoardView.tsx        # Layout del tablero, atajos, overlays
@@ -60,6 +60,10 @@ lienzo/
 │  │  ├─ BoardPreview.tsx     # Miniaturas reales con Canvas
 │  │  ├─ Dashboard.tsx        # Biblioteca de tableros
 │  │  ├─ ShareDialog.tsx      # QR, sala LAN, exportar, importar
+│  │  ├─ BoardSearch.tsx      # Búsqueda Ctrl/Cmd+F
+│  │  ├─ HistoryDialog.tsx    # Instantáneas y restauración
+│  │  ├─ FocusTimer.tsx       # Temporizador de foco
+│  │  ├─ Logo.tsx             # Identidad de tiza
 │  │  └─ dialogs.tsx          # Plantillas, atajos, command palette, about
 │  ├─ lib/
 │  │  ├─ geometry.ts          # Hit testing, bounds, conectores, zoom
@@ -69,11 +73,12 @@ lienzo/
 │  │  ├─ factory.ts           # Creación y duplicación de objetos
 │  │  ├─ storage.ts           # IndexedDB, import/export JSON
 │  │  ├─ persistence.ts       # Autosave con debounce
+│  │  ├─ versions.ts          # Historial local de instantáneas
 │  │  ├─ net.ts               # URLs de sala, QR, portapapeles
 │  │  ├─ export.ts            # PNG, JSON, compresión de imágenes
-│  │  └─ theme.ts             # Paletas y tipografía
+│  │  └─ theme.ts             # Paletas, tema auto/día/noche y tipografía
 │  ├─ store/boardStore.ts     # Estado, historial, acciones, sync
-│  └─ styles/global.css       # Sistema visual completo
+│  └─ styles/global.css       # Tokens duales + capa de acabado v2
 ├─ server/
 │  ├─ collab.mjs              # HTTP + WebSocket + persistencia
 │  └─ index.mjs               # Arranque del servidor local
@@ -103,6 +108,7 @@ interface Board {
   items: BoardItem[];
   comments: CommentPin[];
   favorite?: boolean;
+  locked?: boolean;
 }
 ```
 
@@ -127,6 +133,13 @@ El orden del array es el orden Z. Los marcos se renderizan primero para que su c
 - Los gestos (arrastrar, redimensionar) capturan el snapshot **antes** del primer cambio.
 - La edición de texto guarda el estado al entrar; los cambios se aplican en vivo.
 - Deshacer/rehacer no incluye selección, viewport ni estado de UI.
+
+### Historial de versiones
+
+- `versions.ts` guarda instantáneas completas en IndexedDB, separadas del historial de deshacer.
+- Se crea una instantánea automática cada pocos minutos y se conservan las 24 más recientes por pizarra.
+- El guardado manual usa `force` para no depender del intervalo.
+- Restaurar una versión pasa por el historial normal, así que se puede deshacer con `Ctrl+Z`.
 
 ---
 
@@ -180,7 +193,7 @@ idle
 
 ### Store
 
-`useLienzo` concentra:
+`usetiza` concentra:
 
 - tableros, tablero actual y metadatos;
 - viewport y tamaño del stage;
@@ -188,19 +201,22 @@ idle
 - historial;
 - comentarios;
 - estado de guardado;
-- UI (diálogos);
+- UI (diálogos, búsqueda e historial);
 - presentación;
+- bloqueo de pizarra;
+- temporizador de foco;
 - colaboración (estado, pares, cursores).
 
 Las acciones mutan el tablero de forma inmutable y programan el autosave.
 
 ### Persistencia
 
-- IndexedDB con clave `lienzo:boards:v1`.
+- IndexedDB con clave `lienzo:boards:v1` (se conserva por compatibilidad; el nombre visible es tiza).
 - Fallback a `localStorage` si IndexedDB no está disponible.
 - Debounce de 450 ms.
 - Estado visual: `Guardando…` → `Guardado`.
 - El nombre de usuario y la URL de sala se guardan en `localStorage`.
+- El tema se guarda en `tiza:theme-mode` (`auto`, `light` o `dark`); la clave antigua `lienzo:theme` se usa como fallback.
 
 ### Exportación / importación
 
@@ -268,7 +284,7 @@ El servidor sirve el build y la sala WebSocket. Es la forma más sencilla de com
 - `electron/main.cjs` arranca el servidor de sala integrado.
 - La ventana carga `http://127.0.0.1:<puerto>`; así el QR y las rutas funcionan igual que en web.
 - `preload.cjs` expone `window.lienzoDesktop` con `serverUrl`, `lanUrl` y plataforma.
-- Empaquetado con electron-builder; artefactos `release/Lienzo-Setup-0.1.0-alpha.1.exe` y `release/Lienzo-0.1.0-alpha.1-portable.exe`.
+- Empaquetado con electron-builder; artefactos `release/tiza-Setup-0.1.0-alpha.1.exe` y `release/tiza-0.1.0-alpha.1-portable.exe`.
 - El lanzador `scripts/desktop.mjs` elimina `ELECTRON_RUN_AS_NODE` del entorno para evitar que Electron arranque como Node.
 
 ### Móvil
@@ -292,18 +308,22 @@ El servidor sirve el build y la sala WebSocket. Es la forma más sencilla de com
 
 ## 9. UI y diseño
 
-- **Paleta**: papel cálido, verde profundo y lima; acentos coral, azul y lila.
-- **Tipografía**: Inter para UI, Instrument Serif para titulares.
-- **Dashboard**: sidebar, hero de continuación, tarjetas con previews reales, plantillas.
-- **Tablero**: barra superior con presencia/guardado, toolbar flotante, inspector contextual, zoom, dock móvil.
-- **Responsive**: 980 px (dashboard), 820 px (tablero móvil), 620 px (móvil compacto).
-- **Accesibilidad**: `aria-label`, `aria-pressed`, foco visible, navegación por teclado, reducción de movimiento.
+- **Identidad**: tiza / pizarras en vivo, logo de sonrisa de tiza y chispa lima.
+- **Paleta**: noche (`#1E1C19`) como tema principal, superficies cálidas y lima de acción; día sobre papel cálido. Acentos cielo, verde, rojo y nota.
+- **Tipografía**: Space Grotesk para titulares, Inter para UI y JetBrains Mono para metadatos.
+- **Temas**: `auto`, `light` y `dark`; `auto` sigue `prefers-color-scheme` y se resuelve antes del primer pintado.
+- **Dashboard**: sidebar, hero de continuación, tarjetas con previews reales y plantillas.
+- **Tablero**: barra superior con presencia/guardado, toolbar flotante, inspector contextual, zoom, dock móvil, búsqueda, temporizador e historial.
+- **Responsive**: 980 px (dashboard), 820 px (tablero móvil), 640 px (barra superior compacta).
+- **Accesibilidad**: `aria-label`, `aria-pressed`, foco visible, navegación por teclado, reducción de movimiento, contraste AA y objetivos táctiles de 44 px.
+- **Tokens**: escala semántica dual y alias heredados (`--paper`, `--ink`, `--brand`) para no romper componentes antiguos.
 
 ---
 
 ## 10. Pruebas y verificación
 
-- **Vitest**: 21 pruebas de geometría, conectores (recta, codo y curva), plantillas, duplicación, parseo de archivos y legibilidad de tintas en tema oscuro.
+- **Vitest**: 29 pruebas de geometría, conectores (recta, codo y curva), plantillas, duplicación, parseo de archivos y legibilidad de tintas en tema oscuro.
+- **Contraste**: script `npm run contraste` con 48 pares WCAG AA en día y noche.
 - **Playwright E2E**: creación/edición, undo/redo, formas, comentarios, presentación, QR, exportación PNG, PWA, deep link móvil y sincronización en tiempo real.
 - **Electron**: arranque del `.exe` empaquetado, servidor en 8788, carga de la UI y preload.
 - **Build**: `tsc --noEmit` + Vite; PWA con 25 entradas precacheadas.
@@ -323,14 +343,22 @@ Ver [`VERIFICACION.md`](VERIFICACION.md) para comandos y resultados.
 7. **Rendimiento**: se dibuja todo el tablero; para decenas de miles de objetos haría falta indexación espacial.
 8. **Imágenes en IndexedDB**: tableros con muchas imágenes pueden crecer mucho.
 9. **APK/IPA**: el proyecto nativo está listo, pero la compilación requiere toolchain externa.
-10. **Accesibilidad**: no hay navegación completa por lector de pantalla sobre el canvas.
+10. **Accesibilidad**: no hay navegación completa por lector de pantalla sobre el canvas; los paneles y diálogos sí tienen etiquetas y foco visible.
+11. **Roadmap de producto**: de las 90 ideas de los informes solo está aplicada la identidad y la primera tanda v1.3; no se debe presentar el resto como terminado.
 
 ---
 
-## 12. Roadmap sugerido
+## 12. Roadmap
 
-- **Corto plazo**: indexación espacial, autenticación opcional de sala, exportación SVG, más plantillas, tests de accesibilidad.
-- **Medio plazo**: Yjs/CRDT para texto y objetos, historial colaborativo, integración con calendario/almacenamiento, APK firmado.
+El estado detallado de los dos informes de producto está en [`TIZA-V2.md`](TIZA-V2.md). Resumen:
+
+- **Aplicado en 1.3.0**: identidad v2, temas noche/día/auto, tipografía, sistema visual, búsqueda, historial, temporizador y bloqueo.
+- **Pendiente v1.3**: 9 ideas restantes de las 13 del horizonte.
+- **Pendiente v1.4**: 42 ideas.
+- **Pendiente v2.0**: 31 ideas.
+- **Pendiente v2.0+**: 4 ideas.
+- **Corto plazo recomendado**: exportación PDF/SVG, anclas laterales de conectores, arrastrar cualquier archivo, notas de voz, flashcards, índice espacial y tests de accesibilidad.
+- **Medio plazo**: Yjs/CRDT para texto y objetos, historial colaborativo, APK firmado.
 - **Largo plazo**: cuentas opcionales + sync cifrado, plugins, IA con proveedor propio, MCP para que agentes lean y escriban tableros, versión enterprise autoalojada.
 
 ---

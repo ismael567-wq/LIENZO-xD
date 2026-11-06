@@ -235,7 +235,7 @@ export function ShareDialog() {
                     </button>
                   </div>
                   <p>
-                    Abre este enlace desde cualquier dispositivo de tu red. Lienzo funciona en
+                    Abre este enlace desde cualquier dispositivo de tu red. tiza funciona en
                     web, móvil y escritorio. Los cambios se sincronizan en tiempo real.
                   </p>
                   {isLoopback ? (
@@ -280,7 +280,7 @@ export function ShareDialog() {
                   </button>
                 </div>
                 <p>
-                  Por defecto Lienzo usa el puerto <code>8787</code>. En escritorio, el servidor se
+                  Por defecto tiza usa el puerto <code>8787</code>. En escritorio, el servidor se
                   inicia automáticamente. En web, ejecuta <code>npm run server</code>.
                 </p>
               </details>
@@ -355,12 +355,12 @@ export function ShareDialog() {
             className="export-card"
             onClick={() => {
               exportBoardJSON(board);
-              showToast('Archivo Lienzo exportado.', 'success');
+              showToast('Archivo tiza exportado.', 'success');
             }}
           >
             <span className="export-icon"><FileJson size={22} /></span>
             <div>
-              <strong>Archivo Lienzo (.json)</strong>
+              <strong>Archivo tiza (.json)</strong>
               <p>El tablero completo y editable. Ideal para compartir o respaldar.</p>
             </div>
             <Download size={17} />
@@ -394,7 +394,7 @@ export function ShareDialog() {
             }}
           >
             <FileJson size={30} />
-            <strong>Arrastra un archivo .lienzo.json</strong>
+            <strong>Arrastra un archivo .tiza.json</strong>
             <span>o haz clic para elegirlo</span>
           </div>
           <input

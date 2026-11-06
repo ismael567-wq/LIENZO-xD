@@ -53,7 +53,7 @@ console.log('✓ tablero inicial', board.items.length, 'elementos');
 await page.locator('.toolbar button[aria-label="Nota adhesiva"]').click();
 const canvas = page.locator('.canvas-surface');
 const box = await canvas.boundingBox();
-await page.mouse.click(box.x + 560, box.y + 720);
+await page.mouse.click(box.x + 560, box.y + 600);
 await wait(350);
 await page.keyboard.type('E2E: sincronización en red local', { delay: 8 });
 await page.keyboard.press('Control+Enter');
@@ -80,9 +80,9 @@ console.log('✓ rehacer');
 
 // Add a shape.
 await page.locator('.toolbar button[aria-label="Forma"]').click();
-await page.mouse.move(box.x + 420, box.y + 660);
+await page.mouse.move(box.x + 420, box.y + 520);
 await page.mouse.down();
-await page.mouse.move(box.x + 640, box.y + 780, { steps: 8 });
+await page.mouse.move(box.x + 640, box.y + 620, { steps: 8 });
 await page.mouse.up();
 await wait(700);
 board = await currentBoard();
@@ -153,7 +153,7 @@ mobilePage.on('console', (message) => {
 await mobilePage.goto(shareLink, { waitUntil: 'networkidle' });
 await mobilePage.waitForSelector('.board-shell');
 await wait(1200);
-assert.equal(await mobilePage.locator('.board-title-input').inputValue(), 'Bienvenido a Lienzo');
+assert.equal(await mobilePage.locator('.board-title-input').inputValue(), 'Bienvenido a tiza');
 console.log('✓ móvil abrió el tablero compartido');
 
 // Add a note from mobile.

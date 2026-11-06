@@ -7,9 +7,11 @@ import {
   Download,
   FileJson,
   Frame,
+  History,
   Image as ImageIcon,
   Keyboard,
   LayoutGrid,
+  Lock,
   Magnet,
   Maximize2,
   Moon,
@@ -23,8 +25,10 @@ import {
   Sparkles,
   StickyNote,
   Sun,
+  TimerReset,
   Type,
   Ungroup,
+  Unlock,
   Zap,
 } from 'lucide-react';
 import type { TemplateId } from '../types';
@@ -202,7 +206,7 @@ export function AboutDialog() {
   if (!open) return null;
   return (
     <Modal
-      title="Acerca de Lienzo"
+      title="Acerca de tiza"
       eyebrow="Un espacio visual, tuyo"
       onClose={() => setUi('about', false)}
       size="md"
@@ -212,7 +216,7 @@ export function AboutDialog() {
         <div>
           <h3>Piensa sin bordes. Alpha.</h3>
           <p>
-            Lienzo es una pizarra visual local-first inspirada en la colaboración de Miro, pero
+            tiza es una pizarra visual local-first inspirada en la colaboración de Miro, pero
             diseñada para funcionar sin cuentas, sin nube y sin depender de un servicio externo.
             Esta es una versión alpha: úsala, pruébala y cuéntanos qué se rompe.
           </p>
@@ -321,6 +325,50 @@ export function CommandPalette() {
         run: () => {
           close();
           setUi('share', true);
+        },
+      },
+      {
+        id: 'search',
+        label: 'Buscar en esta pizarra',
+        hint: 'Ctrl + F',
+        icon: <Search size={17} />,
+        group: 'Tablero',
+        run: () => {
+          close();
+          setUi('search', true);
+        },
+      },
+      {
+        id: 'history',
+        label: 'Historial de versiones',
+        hint: 'Restaura un punto anterior',
+        icon: <History size={17} />,
+        group: 'Tablero',
+        run: () => {
+          close();
+          setUi('history', true);
+        },
+      },
+      {
+        id: 'timer',
+        label: 'Abrir temporizador de foco',
+        hint: 'Sesiones de 15, 25 o 50 min',
+        icon: <TimerReset size={17} />,
+        group: 'Herramientas',
+        run: () => {
+          close();
+          useLienzo.getState().openTimer();
+        },
+      },
+      {
+        id: 'lock',
+        label: board.locked ? 'Desbloquear la pizarra' : 'Bloquear la pizarra',
+        hint: 'Evita ediciones accidentales',
+        icon: board.locked ? <Unlock size={17} /> : <Lock size={17} />,
+        group: 'Tablero',
+        run: () => {
+          close();
+          useLienzo.getState().toggleBoardLock();
         },
       },
       {
@@ -439,7 +487,7 @@ export function CommandPalette() {
       },
       {
         id: 'json',
-        label: 'Exportar como archivo Lienzo',
+        label: 'Exportar como archivo tiza',
         icon: <FileJson size={17} />,
         group: 'Tablero',
         run: () => {
@@ -470,7 +518,7 @@ export function CommandPalette() {
       },
       {
         id: 'about',
-        label: 'Acerca de Lienzo',
+        label: 'Acerca de tiza',
         icon: <Sparkles size={17} />,
         group: 'Ayuda',
         run: () => {
@@ -560,7 +608,7 @@ export function CommandPalette() {
             <kbd>↵</kbd> abrir
           </span>
           <span>
-            <Command size={12} /> Paleta de Lienzo
+            <Command size={12} /> Paleta de tiza
           </span>
         </div>
       </div>

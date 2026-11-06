@@ -5,12 +5,33 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0E5B4F" />
-    <meta name="description" content="Lienzo es una pizarra visual colaborativa local-first para web, escritorio y móvil." />
+    <meta name="theme-color" content="#1E1C19" />
+    <meta name="description" content="tiza — pizarras en vivo. Una pizarra visual colaborativa local-first para web, escritorio y móvil." />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Lienzo" />
-    <title>Lienzo — pizarra visual local-first</title>
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="tiza" />
+    <title>tiza — pizarras en vivo</title>
+    <script>
+      // Resuelve el tema antes del primer pintado para evitar el destello.
+      (function () {
+        try {
+          var mode = localStorage.getItem('tiza:theme-mode');
+          if (!mode) {
+            var legacy = localStorage.getItem('lienzo:theme');
+            mode = legacy === 'light' ? 'light' : 'dark';
+          }
+          var dark =
+            mode === 'dark' ||
+            (mode === 'auto' &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+          document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+        } catch (error) {
+          document.documentElement.dataset.theme = 'dark';
+          document.documentElement.style.colorScheme = 'dark';
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

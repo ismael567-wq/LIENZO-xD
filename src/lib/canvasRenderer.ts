@@ -765,7 +765,7 @@ function drawEmptyState(
   ctx.textAlign = 'center';
   ctx.fillStyle = palette.muted;
   ctx.font = fontString(preview ? 15 : 20, 500, 'serif');
-  ctx.fillText('Un lienzo en blanco para pensar', centerX, centerY - 6);
+  ctx.fillText('Una pizarra en blanco para pensar', centerX, centerY - 6);
   ctx.font = fontString(preview ? 11 : 13, 500);
   ctx.fillStyle = palette.muted;
   ctx.fillText(

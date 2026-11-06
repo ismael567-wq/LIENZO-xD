@@ -1,8 +1,8 @@
-# Guía de uso — Lienzo alpha
+# Guía de uso — tiza alpha
 
-## ¿Qué es Lienzo?
+## ¿Qué es tiza?
 
-Lienzo es una pizarra visual colaborativa **local-first** para Windows, web y móvil. Sirve para pensar, planificar y presentar ideas sobre un lienzo infinito: notas, formas, textos, conectores, imágenes, marcos y comentarios.
+tiza es una pizarra visual colaborativa **local-first** para Windows, web y móvil. Sirve para pensar, planificar y presentar ideas sobre un lienzo infinito: notas, formas, textos, conectores, imágenes, marcos y comentarios.
 
 La diferencia con Miro es el punto de partida:
 
@@ -12,36 +12,36 @@ La diferencia con Miro es el punto de partida:
 - **Colaboración en tu red**: un servidor pequeño permite editar entre dispositivos de la misma Wi-Fi.
 - **Datos abiertos**: exportas e importas JSON y PNG.
 
-Esta es la **versión 1.2.1**. Sigue siendo una alpha funcional pensada para probar el concepto y detectar fallos, no para producción.
+Esta es la **versión 1.3.0**. Sigue siendo una alpha funcional pensada para probar el concepto y detectar fallos, no para producción.
 
 ---
 
 ## 1. Instalar en Windows
 
-1. Descarga `Lienzo-Setup-1.2.1.exe`.
+1. Descarga `tiza-Setup-1.3.0.exe`.
 2. Ejecútalo.
 3. Windows puede mostrar **“Windows protegió tu PC”** porque el ejecutable **no está firmado**. Pulsa **Más información → Ejecutar de todas formas**. Es normal en una alpha sin certificado de firma de código.
 4. Elige la carpeta de instalación o deja la predeterminada.
-5. Al terminar, abre **Lienzo** desde el menú Inicio o el acceso directo del escritorio.
+5. Al terminar, abre **tiza** desde el menú Inicio o el acceso directo del escritorio.
 
 El instalador crea:
 
-- `Lienzo.exe` en la carpeta elegida.
+- `tiza.exe` en la carpeta elegida.
 - Acceso directo en el escritorio.
 - Entrada en el menú Inicio.
 - Desinstalador en **Configuración → Aplicaciones**.
 
-También existe una versión **portable** (`Lienzo-1.2.1-portable.exe`) que no requiere instalación.
+También existe una versión **portable** (`tiza-1.3.0-portable.exe`) que no requiere instalación.
 
 ### Actualizar desde una versión anterior
 
-Lienzo incluye un botón **Opciones** (engranaje) en la barra superior y en el panel lateral. Desde ahí puedes:
+tiza incluye un botón **Opciones** (engranaje) en la barra superior y en el panel lateral. Desde ahí puedes:
 
 - Ver la versión instalada.
 - Comprobar si hay una actualización publicada en GitHub.
 - Descargar y abrir el instalador de la nueva versión.
 
-El aviso de actualización también aparece como un punto coral sobre el engranaje. Al instalar una versión nueva, **tus tableros y preferencias se conservan**: viven en `%APPDATA%\Lienzo` y el instalador no los borra.
+El aviso de actualización también aparece como un punto coral sobre el engranaje. Al instalar una versión nueva, **tus tableros y preferencias se conservan**: viven en `%APPDATA%\tiza` y el instalador no los borra.
 
 ### Requisitos
 
@@ -53,7 +53,7 @@ El aviso de actualización también aparece como un punto coral sobre el engrana
 
 ## 2. Primeros pasos
 
-1. Abre Lienzo. Verás el **dashboard** con tres tableros de ejemplo.
+1. Abre tiza. Verás el **dashboard** con tres tableros de ejemplo.
 2. Pulsa **Nuevo tablero** para elegir una plantilla o un lienzo en blanco.
 3. En el tablero, usa la barra inferior:
    - **Seleccionar (V)**: mover, redimensionar y editar.
@@ -80,9 +80,18 @@ El aviso de actualización también aparece como un punto coral sobre el engrana
 | Marco / comentario | `F` / `M` |
 | Deshacer / rehacer | `Ctrl+Z` / `Ctrl+Shift+Z` |
 | Duplicar | `Ctrl+D` |
+| Buscar en la pizarra | `Ctrl+F` |
 | Paleta de comandos | `Ctrl+K` |
 | Ajustar a todo | `Shift+1` |
 | Presentar / salir | botón **Presentar** / `Esc` |
+
+### Buscar, volver atrás y concentrarte
+
+- **Buscar** (`Ctrl+F`): abre un buscador sobre notas, textos, formas, marcos y etiquetas. Usa las flechas y `Enter` para saltar al resultado.
+- **Historial** (**Más → Historial de versiones**): tiza guarda una instantánea automática cada pocos minutos y conserva hasta 24 por pizarra. Puedes guardar una versión manual y restaurar cualquier punto. La restauración se puede deshacer con `Ctrl+Z`.
+- **Temporizador de foco** (**Más → Temporizador de foco**): elige 15, 25 o 50 minutos, pausa o reinicia. El panel se puede cerrar sin detener la sesión.
+- **Bloquear pizarra** (**Más → Bloquear pizarra**): deja el lienzo en solo lectura para revisar o presentar. El aviso superior permite desbloquear.
+- **Tema**: el botón sol/luna alterna día y noche. En **Opciones** puedes elegir **Automático** para seguir la preferencia del sistema.
 
 ---
 
@@ -105,7 +114,7 @@ Notas:
 
 ---
 
-## 4. Usar Lienzo en el móvil
+## 4. Usar tiza en el móvil
 
 ### Opción A — PWA (la más rápida)
 
@@ -132,11 +141,11 @@ La compilación de APK/IPA no está incluida en la entrega porque requiere el to
 
 ## 5. Dónde están tus datos
 
-- **Escritorio**: IndexedDB dentro del perfil de Electron, normalmente en `%APPDATA%\Lienzo` (o en la carpeta de datos de la app).
+- **Escritorio**: IndexedDB dentro del perfil de Electron, normalmente en `%APPDATA%\tiza`. Si actualizas desde Lienzo, tiza reutiliza automáticamente el perfil anterior `%APPDATA%\Lienzo` para conservar tableros.
 - **Web**: IndexedDB del navegador.
 - **Sala LAN**: el servidor guarda copias en `data/boards/` (versión Node) o en la carpeta de usuario de Electron.
 - **Exportación**: usa **Compartir → Exportar** para guardar PNG o JSON.
-- **Importación**: **Compartir → Importar** para abrir un `.lienzo.json`.
+- **Importación**: **Compartir → Importar** para abrir un `.tiza.json` (también acepta los antiguos `.lienzo.json`).
 
 Haz copias de seguridad con la exportación JSON antes de probar cambios grandes.
 
@@ -159,6 +168,8 @@ Esta entrega incluye comentarios y documentación para que el proyecto sea fáci
 - Plantillas, presentación, comentarios y exportación.
 - Persistencia local y PWA offline.
 - Sala LAN con QR, presencia y sincronización.
+- Búsqueda, historial de versiones, temporizador de foco y bloqueo de pizarra.
+- Temas automático, día y noche, con contraste AA y objetivos táctiles de 44 px.
 - Instalador de Windows y versión portable.
 
 ### Límites alpha conocidos
@@ -178,13 +189,13 @@ Incluye:
 1. Qué estabas haciendo.
 2. Qué esperabas.
 3. Qué ocurrió.
-4. Versión (`1.2.1`) y plataforma (Windows, navegador, móvil).
+4. Versión (`1.3.0`) y plataforma (Windows, navegador, móvil).
 5. Una captura o el tablero exportado en JSON si es posible.
 
 ---
 
 ## 7. Desinstalar
 
-- **Windows**: Configuración → Aplicaciones → Lienzo → Desinstalar.
+- **Windows**: Configuración → Aplicaciones → tiza → Desinstalar.
 - **PWA**: mantén pulsado el icono → Quitar.
 - Tus tableros exportados en JSON no se borran con la app.

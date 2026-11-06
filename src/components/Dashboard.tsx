@@ -164,7 +164,7 @@ function BoardCard({ board }: { board: Board }) {
               onClick={() => {
                 setMenuOpen(false);
                 exportBoardJSON(board);
-                showToast('Archivo Lienzo exportado.', 'success');
+                showToast('Archivo tiza exportado.', 'success');
               }}
             >
               <FileJson size={15} /> Exportar JSON
@@ -376,7 +376,7 @@ export function Dashboard() {
             }}
           >
             <Download size={15} />
-            Instalar Lienzo
+            Instalar tiza
           </button>
         ) : null}
 
@@ -444,13 +444,13 @@ export function Dashboard() {
 
         <section className="dash-intro">
           <div>
-            <span className="eyebrow">Tu espacio visual</span>
+            <span className="eyebrow">pizarras en vivo</span>
             <h1>
               {greeting}, <em>{userName}</em>.
             </h1>
             <p>
-              Un lienzo para pensar, planear y compartir. Sin cuentas, sin fricción y con tus
-              datos donde deben estar: contigo.
+              Una pizarra para pensar, planear y compartir en vivo. Sin cuentas, sin fricción
+              y con tus datos donde deben estar: contigo.
             </p>
           </div>
           <div className="dash-intro-actions">
@@ -490,7 +490,7 @@ export function Dashboard() {
                 </button>
                 <button
                   type="button"
-                  className="btn btn-on-dark"
+                  className="btn btn-ghost"
                   onClick={() => useLienzo.getState().toggleFavorite(recentBoard.id)}
                 >
                   <Star size={15} fill={recentBoard.favorite ? 'currentColor' : 'none'} />
@@ -504,7 +504,7 @@ export function Dashboard() {
               </div>
             </div>
             <div className="feature-art">
-              <div className="feature-art-note">Tu lienzo, en cualquier pantalla</div>
+              <div className="feature-art-note">Tu pizarra, en cualquier pantalla</div>
               <div
                 className="feature-art-board"
                 role="button"
@@ -546,7 +546,7 @@ export function Dashboard() {
               <p>
                 {query
                   ? 'Prueba con otro nombre o limpia la búsqueda.'
-                  : 'Empieza con una plantilla o crea un lienzo en blanco.'}
+                  : 'Empieza con una plantilla o crea una pizarra en blanco.'}
               </p>
               <button
                 type="button"
@@ -584,7 +584,7 @@ export function Dashboard() {
 
         <footer className="dash-footer">
           <span>
-            <Logo size={17} /> Lienzo alpha · pizarra visual local-first
+            <Logo size={17} /> tiza · pizarras en vivo
           </span>
           <span>Hecho para pensar en voz alta.</span>
         </footer>

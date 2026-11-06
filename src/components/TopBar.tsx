@@ -8,23 +8,28 @@ import {
   Download,
   FileJson,
   Grid3X3,
+  History,
   Image as ImageIcon,
   Info,
   Keyboard,
   Loader2,
+  Lock,
   Maximize2,
   Minimize2,
   Moon,
   MoreHorizontal,
   Play,
   Plus,
+  Search,
   Share2,
   ShieldCheck,
   Settings,
   Sparkles,
   Star,
   Sun,
+  TimerReset,
   Trash2,
+  Unlock,
   Users,
   Wifi,
   WifiOff,
@@ -114,6 +119,8 @@ export function TopBar({ board }: TopBarProps) {
   const setBackground = useLienzo((state) => state.setBackground);
   const theme = useLienzo((state) => state.theme);
   const toggleTheme = useLienzo((state) => state.toggleTheme);
+  const openTimer = useLienzo((state) => state.openTimer);
+  const toggleBoardLock = useLienzo((state) => state.toggleBoardLock);
   const zen = useLienzo((state) => state.zen);
   const toggleZen = useLienzo((state) => state.toggleZen);
   const selected = useLienzo((state) => state.selected);
@@ -186,7 +193,7 @@ export function TopBar({ board }: TopBarProps) {
           type="button"
           className="brand-button"
           onClick={closeBoard}
-          aria-label="Ir a Lienzo"
+          aria-label="Ir a tiza"
         >
           <Logo size={27} />
         </button>
@@ -312,7 +319,7 @@ export function TopBar({ board }: TopBarProps) {
               </button>
               <button type="button" role="menuitem" onClick={() => handleExport('json')}>
                 <FileJson size={16} />
-                <span>Archivo Lienzo</span>
+                <span>Archivo tiza</span>
                 <small>Editable</small>
               </button>
               <div className="menu-separator" />
@@ -380,6 +387,88 @@ export function TopBar({ board }: TopBarProps) {
                 <Star size={16} />
                 <span>{board.favorite ? 'Quitar de favoritos' : 'Añadir a favoritos'}</span>
               </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMoreOpen(false);
+                  setUi('search', true);
+                }}
+              >
+                <Search size={16} />
+                <span>Buscar en la pizarra</span>
+                <kbd>Ctrl F</kbd>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMoreOpen(false);
+                  setUi('history', true);
+                }}
+              >
+                <History size={16} />
+                <span>Historial de versiones</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMoreOpen(false);
+                  openTimer();
+                }}
+              >
+                <TimerReset size={16} />
+                <span>Temporizador de foco</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMoreOpen(false);
+                  toggleBoardLock();
+                }}
+              >
+                {board.locked ? <Unlock size={16} /> : <Lock size={16} />}
+                <span>{board.locked ? 'Desbloquear pizarra' : 'Bloquear pizarra'}</span>
+              </button>
+              <div className="menu-separator mobile-menu-only" />
+              <button
+                type="button"
+                role="menuitem"
+                className="mobile-menu-only"
+                onClick={() => {
+                  setMoreOpen(false);
+                  toggleTheme();
+                }}
+              >
+                {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+                <span>{theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="mobile-menu-only"
+                onClick={() => {
+                  setMoreOpen(false);
+                  toggleZen();
+                }}
+              >
+                {zen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                <span>{zen ? 'Salir de concentración' : 'Modo concentración'}</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="mobile-menu-only"
+                onClick={() => {
+                  setMoreOpen(false);
+                  setUi('options', true);
+                }}
+              >
+                <Settings size={16} />
+                <span>Opciones y actualizaciones</span>
+              </button>
               <div className="menu-separator" />
               <div className="menu-label">Fondo del lienzo</div>
               <div className="background-row">
@@ -443,7 +532,7 @@ export function TopBar({ board }: TopBarProps) {
                 }}
               >
                 <Info size={16} />
-                <span>Acerca de Lienzo</span>
+                <span>Acerca de tiza</span>
               </button>
               <div className="menu-separator" />
               <button

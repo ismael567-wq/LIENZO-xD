@@ -17,7 +17,7 @@
 - La colaboración se apoya en un modelo de objetos independientes, sincronización por operaciones, presencia separada del estado durable, resolución de conflictos por campo y renderizado selectivo por viewport. [Análisis técnico de referencia](https://www.educative.io/blog/miro-system-design)
 - El negocio es **freemium por asiento**: gratis con 3 tableros; Starter 8 USD/mes; Business 20 USD/mes; Enterprise a medida. [Precios](https://miro.com/pricing/)
 - Las fricciones son claras: dependencia de nube y cuenta, coste por asiento, curva de aprendizaje, exceso de funciones y sensibilidad a la privacidad.
-- **Lienzo** explora el hueco contrario: local-first, sin registro, offline, colaboración en LAN, API abierta y una experiencia deliberadamente contenida.
+- **tiza** explora el hueco contrario: local-first, sin registro, offline, colaboración en LAN, API abierta y una experiencia deliberadamente contenida.
 
 ---
 
@@ -41,7 +41,7 @@ La empresa se describe a sí misma como una plataforma de innovación basada en 
 
 | Objetivo | Cómo se refleja en el producto |
 |---|---|
-| Ser el lugar donde empieza el trabajo | Lienzo como primera pantalla, plantillas para cada workflow y “blueprints”. |
+| Ser el lugar donde empieza el trabajo | tiza como primera pantalla, plantillas para cada workflow y “blueprints”. |
 | Eliminar el cambio de herramienta | 250+ integraciones, embeds, MCP, importación/exportación. |
 | Convertir la colaboración en resultados | Votaciones, temporizador, estimaciones, presentaciones, Talktrack, resúmenes con IA. |
 | Atender a empresas | SSO/SAML, SCIM, auditoría, residencia de datos, roles, Enterprise Guard. |
@@ -55,7 +55,7 @@ La venta anunciada a Bending Spoons refuerza la lectura financiera: Miro es un n
 
 ## 4. Mapa funcional
 
-### 4.1 Lienzo y navegación
+### 4.1 tiza y navegación
 
 - Lienzo infinito con pan y zoom.
 - Marcos (“frames”) que actúan como secciones y como diapositivas en presentaciones.
@@ -179,7 +179,7 @@ flowchart LR
 - Objetivo de 60 fps, degradación a 30 fps en tableros densos.
 - Capas: fondo, objetos, conectores, selección, cursores, UI.
 
-Lienzo adopta una versión **deliberadamente simple y local-first** de estas ideas: objetos independientes, operaciones por ítem, presencia separada y Canvas 2D con culling. No implementa CRDT ni un clúster; prioriza que un equipo pequeño pueda trabajar sin infraestructura.
+tiza adopta una versión **deliberadamente simple y local-first** de estas ideas: objetos independientes, operaciones por ítem, presencia separada y Canvas 2D con culling. No implementa CRDT ni un clúster; prioriza que un equipo pequeño pueda trabajar sin infraestructura.
 
 ---
 
@@ -209,9 +209,9 @@ El modelo es **per-seat** y está orientado a expansión dentro de la organizaci
 - **Privacidad y soberanía**: aunque hay residencia de datos, el modelo sigue siendo centralizado.
 - **Vendor lock-in**: exportar es posible, pero la experiencia completa vive dentro de Miro.
 
-### Hueco para Lienzo
+### Hueco para tiza
 
-Lienzo no intenta ganar a Miro en amplitud. Elige un segmento distinto:
+tiza no intenta ganar a Miro en amplitud. Elige un segmento distinto:
 
 - **Local-first**: el tablero vive en el dispositivo; funciona sin internet.
 - **Sin cuentas**: abrir y empezar.
@@ -224,9 +224,9 @@ Es una propuesta **complementaria** a Miro, no un clon a escala enterprise.
 
 ---
 
-## 10. Decisiones de producto para Lienzo
+## 10. Decisiones de producto para tiza
 
-| Decisión de Miro | Decisión en Lienzo | Razón |
+| Decisión de Miro | Decisión en tiza | Razón |
 |---|---|---|
 | Lienzo infinito | Igual | Es el corazón del modelo mental. |
 | Objetos independientes | Igual | Permite edición granular y extensibilidad. |
@@ -242,7 +242,7 @@ Es una propuesta **complementaria** a Miro, no un clon a escala enterprise.
 
 ---
 
-## 11. Matriz de paridad de Lienzo
+## 11. Matriz de paridad de tiza
 
 | Capacidad | Estado | Nota |
 |---|---|---|
@@ -273,7 +273,7 @@ Es una propuesta **complementaria** a Miro, no un clon a escala enterprise.
 
 Miro demuestra que el lienzo visual es una categoría duradera, pero su escala le empuja hacia la plataforma enterprise, la IA y el ecosistema. Ese movimiento deja un espacio claro para una herramienta **más pequeña, más privada y más directa**.
 
-Lienzo no compite en número de funciones: compite en **propiedad, simplicidad y ubicuidad**. La apuesta es que muchas personas y equipos pequeños prefieren un tablero que se abre al instante, funciona sin conexión y se comparte en la red local antes que un workspace corporativo con 250 integraciones.
+tiza no compite en número de funciones: compite en **propiedad, simplicidad y ubicuidad**. La apuesta es que muchas personas y equipos pequeños prefieren un tablero que se abre al instante, funciona sin conexión y se comparte en la red local antes que un workspace corporativo con 250 integraciones.
 
 ---
 

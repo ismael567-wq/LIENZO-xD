@@ -6,7 +6,20 @@ const { pipeline } = require('node:stream/promises');
 const { pathToFileURL } = require('node:url');
 
 const REPO = 'ismael567-wq/LIENZO-xD';
-const USER_AGENT = 'Lienzo-Desktop';
+const USER_AGENT = 'tiza-Desktop';
+
+// Reutiliza el perfil de la etapa Lienzo para no perder tableros al actualizar.
+try {
+  const appData = app.getPath('appData');
+  const currentUserData = app.getPath('userData');
+  const legacyUserData = path.join(appData, 'Lienzo');
+  const hasContents = (dir) => fs.existsSync(dir) && fs.readdirSync(dir).length > 0;
+  if (!hasContents(currentUserData) && hasContents(legacyUserData)) {
+    app.setPath('userData', legacyUserData);
+  }
+} catch {
+  // Si la migración falla, Electron sigue con el perfil nuevo.
+}
 
 let mainWindow = null;
 let serverInfo = null;
@@ -72,8 +85,8 @@ function createWindow() {
     height: 940,
     minWidth: 980,
     minHeight: 660,
-    backgroundColor: '#F4F1E8',
-    title: 'Lienzo',
+    backgroundColor: '#1E1C19',
+    title: 'tiza',
     autoHideMenuBar: true,
     show: false,
     webPreferences: {
@@ -169,7 +182,7 @@ ipcMain.handle('lienzo:install-update', async (_event, payload) => {
   if (typeof url !== 'string' || !/^https:\/\//i.test(url)) {
     throw new Error('La actualización no tiene una URL válida.');
   }
-  const safeName = String(payload?.name || 'Lienzo-Setup.exe').replace(/[^a-zA-Z0-9._-]/g, '_');
+  const safeName = String(payload?.name || 'tiza-Setup.exe').replace(/[^a-zA-Z0-9._-]/g, '_');
   const target = path.join(app.getPath('downloads'), safeName);
 
   const response = await fetch(url, {

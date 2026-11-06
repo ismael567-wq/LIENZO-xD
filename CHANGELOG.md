@@ -1,6 +1,37 @@
 # Changelog
 
-Todas las versiones relevantes de Lienzo.
+Todas las versiones relevantes de tiza.
+
+## [1.3.0] — 2026-11-05
+
+Rediseño visual v2 y primera tanda de funciones de producto de los informes.
+
+### Añadido
+
+- Nueva identidad **tiza / pizarras en vivo**: logo de sonrisa de tiza, favicon, iconos PWA y de escritorio, manifest y textos de la app.
+- Sistema visual dual **noche / día** con `#1E1C19` como pizarra principal, superficies cálidas, lima de acción y tokens semánticos.
+- Selector de tema **auto / día / noche**; `auto` sigue `prefers-color-scheme` y el tema se resuelve antes del primer pintado.
+- Tipografía Space Grotesk + Inter + JetBrains Mono, escala tipográfica y nuevos componentes de barra superior, dashboard, tarjetas, toolbar, inspector, menús, modales y toasts.
+- **Búsqueda dentro de la pizarra** con `Ctrl/Cmd+F`, navegación por resultados y salto al elemento.
+- **Historial de versiones** local con instantáneas automáticas, guardado manual, restauración y hasta 24 versiones por pizarra.
+- **Temporizador de foco** flotante con presets de 15, 25 y 50 minutos, pausa, reinicio y progreso accesible.
+- **Bloqueo de pizarra** en solo lectura, con aviso desbloqueable y entradas en menú y paleta de comandos.
+- Exportación JSON renombrada a archivo `.tiza.json`.
+- Script `npm run contraste` con auditoría de 48 combinaciones WCAG AA.
+- Documento [`docs/TIZA-V2.md`](docs/TIZA-V2.md) con el alcance aplicado y el roadmap pendiente.
+
+### Cambiado
+
+- La barra superior móvil prioriza casa, título, compartir y menú; tema, concentración y opciones se movieron al menú «Más».
+- La cámara móvil ajusta el ancho real del lienzo en lugar de asumir una columna de 720 px.
+- Los objetivos táctiles con puntero grueso pasan a 44 px como mínimo.
+- Los nombres visibles del producto pasan a **tiza**; las claves internas y los datos existentes se conservan para no romper tableros.
+
+### Corregido
+
+- El contenido de la pizarra ya no se recorta al abrir un tablero en un móvil estrecho.
+- El botón «Propiedades» conserva su texto en pantallas táctiles.
+- Los menús y el temporizador respetan mejor los márgenes seguros del móvil.
 
 ## [1.2.1] — 2026-11-04
 

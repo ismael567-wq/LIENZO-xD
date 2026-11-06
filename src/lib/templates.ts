@@ -16,7 +16,7 @@ import { uid } from './geometry';
 export const TEMPLATES: TemplateMeta[] = [
   {
     id: 'blank',
-    name: 'Lienzo en blanco',
+    name: 'Pizarra en blanco',
     description: 'Una página infinita para empezar sin reglas.',
     tag: 'Libre',
   },
@@ -66,13 +66,13 @@ export const TEMPLATES: TemplateMeta[] = [
     id: 'welcome',
     name: 'Bienvenida',
     description: 'Un recorrido guiado por todo lo que puedes hacer.',
-    tag: 'Lienzo',
+    tag: 'tiza',
   },
 ];
 
 export const DEFAULT_BOARD_NAME: Record<TemplateId, string> = {
-  blank: 'Lienzo sin título',
-  welcome: 'Bienvenido a Lienzo',
+  blank: 'Pizarra sin título',
+  welcome: 'Bienvenido a tiza',
   brainstorm: 'Lluvia de ideas',
   retro: 'Retrospectiva del equipo',
   kanban: 'Plan del sprint',
@@ -198,7 +198,7 @@ function connector(
 
 function createWelcome(): BoardItem[] {
   const items: BoardItem[] = [];
-  const title = text(80, 56, 980, 'Bienvenido a Lienzo', 78, '#16211E', 'serif');
+  const title = text(80, 56, 980, 'Bienvenido a tiza', 78, '#16211E', 'serif');
   title.h = 96;
   const subtitle = text(
     84,
@@ -221,7 +221,7 @@ function createWelcome(): BoardItem[] {
   items.push(f1);
 
   const steps = [
-    ['1', 'Crea', 'Elige una nota, una forma o un texto en la barra lateral y haz clic en el lienzo.'],
+    ['1', 'Crea', 'Elige una nota, una forma o un texto en la barra lateral y haz clic en la pizarra.'],
     ['2', 'Conecta', 'Selecciona el conector y arrastra de un elemento a otro para unir ideas.'],
     ['3', 'Comparte', 'Abre Compartir y escanea el QR desde tu móvil. Todo se sincroniza en tu red.'],
   ] as const;
@@ -501,7 +501,7 @@ export function createBoard(
 }
 
 export function createWelcomeBoard(): Board {
-  return createBoard('welcome', 'Bienvenido a Lienzo');
+  return createBoard('welcome', 'Bienvenido a tiza');
 }
 
 export function templateItems(template: TemplateId): BoardItem[] {

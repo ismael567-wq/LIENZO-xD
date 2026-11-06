@@ -14,6 +14,7 @@ import type {
   ShapeKind,
   TemplateId,
   Theme,
+  ThemeMode,
   ToastMessage,
   Tool,
   Viewport,
@@ -29,7 +30,13 @@ import {
   uid,
   wordCount,
 } from '../lib/geometry';
-import { userColor, applyTheme, loadTheme, saveTheme } from '../lib/theme';
+import {
+  userColor,
+  applyTheme,
+  loadThemeMode,
+  resolveTheme,
+  saveThemeMode,
+} from '../lib/theme';
 import { createBoard, createWelcomeBoard, DEFAULT_BOARD_NAME } from '../lib/templates';
 import { duplicateItems, newSticky } from '../lib/factory';
 import {
@@ -52,7 +59,9 @@ type OverlayKey =
   | 'command'
   | 'newBoard'
   | 'about'
-  | 'options';
+  | 'options'
+  | 'search'
+  | 'history';
 
 export interface UiState {
   share: boolean;
@@ -62,6 +71,19 @@ export interface UiState {
   newBoard: boolean;
   about: boolean;
   options: boolean;
+  search: boolean;
+  history: boolean;
+}
+
+export interface FocusTimerState {
+  visible: boolean;
+  /** Duración elegida, en minutos. */
+  duration: number;
+  /** Marca temporal de fin cuando está en marcha. */
+  endsAt: number | null;
+  /** Milisegundos restantes cuando está en pausa. */
+  remaining: number;
+  running: boolean;
 }
 
 export interface PresentationState {
@@ -86,12 +108,14 @@ interface LienzoState {
   userName: string;
   snapToGrid: boolean;
   theme: Theme;
+  themeMode: ThemeMode;
   zen: boolean;
   gridSize: number;
   toast: ToastMessage | null;
   collab: CollabState;
   ui: UiState;
   presentation: PresentationState | null;
+  timer: FocusTimerState;
 
   init: () => Promise<void>;
   createBoard: (template?: TemplateId, name?: string) => string | null;
@@ -111,7 +135,10 @@ interface LienzoState {
   focusRect: (rect: Rect, padding?: number, maxZoom?: number) => void;
   setSnapToGrid: (value: boolean) => void;
   setBackground: (background: Board['background']) => void;
+  toggleBoardLock: () => void;
+  restoreSnapshot: (snapshot: HistorySnapshot, label: string) => void;
   setTheme: (theme: Theme) => void;
+  setThemeMode: (mode: ThemeMode) => void;
   toggleTheme: () => void;
   setZen: (value: boolean) => void;
   toggleZen: () => void;
@@ -161,6 +188,13 @@ interface LienzoState {
   prevSlide: () => void;
   exitPresentation: () => void;
 
+  openTimer: () => void;
+  startTimer: (minutes?: number) => void;
+  toggleTimer: () => void;
+  resetTimer: () => void;
+  finishTimer: () => void;
+  closeTimer: () => void;
+
   connectCollab: (baseUrl?: string) => Promise<void>;
   disconnectCollab: () => void;
   refreshServerInfo: () => Promise<void>;
@@ -198,7 +232,8 @@ function expandGroupSelection(board: Board | null, ids: string[]): string[] {
   return [...next];
 }
 
-const INITIAL_THEME = loadTheme();
+const INITIAL_THEME_MODE = loadThemeMode();
+const INITIAL_THEME = resolveTheme(INITIAL_THEME_MODE);
 applyTheme(INITIAL_THEME);
 
 function cloneBoardDeep(board: Board): Board {
@@ -316,6 +351,7 @@ export const useLienzo = create<LienzoState>()((set, get) => {
     userName: 'Invitado',
     snapToGrid: false,
     theme: INITIAL_THEME,
+    themeMode: INITIAL_THEME_MODE,
     zen: false,
     gridSize: 24,
     toast: null,
@@ -328,8 +364,17 @@ export const useLienzo = create<LienzoState>()((set, get) => {
       newBoard: false,
       about: false,
       options: false,
+      search: false,
+      history: false,
     },
     presentation: null,
+    timer: {
+      visible: false,
+      duration: 25,
+      endsAt: null,
+      remaining: 25 * 60 * 1000,
+      running: false,
+    },
 
     init: async () => {
       if (get().ready) return;
@@ -585,10 +630,46 @@ export const useLienzo = create<LienzoState>()((set, get) => {
       mutateBoard((board) => ({ ...board, background }), { history: true });
     },
 
+    toggleBoardLock: () => {
+      const board = currentBoardOf(get());
+      if (!board) return;
+      const locked = !board.locked;
+      mutateBoard((current) => ({ ...current, locked }), { history: true });
+      set({ selected: [], editingId: null, tool: locked ? 'hand' : 'select' });
+      get().showToast(
+        locked
+          ? 'Pizarra bloqueada: puedes moverte por ella, pero no editarla.'
+          : 'Pizarra desbloqueada. Ya puedes editar.',
+        'info',
+      );
+    },
+
+    restoreSnapshot: (snapshot, label) => {
+      const board = currentBoardOf(get());
+      if (!board) return;
+      mutateBoard(
+        (current) => ({ ...current, ...structuredClone(snapshot) }),
+        { history: true },
+      );
+      set({
+        selected: [],
+        editingId: null,
+        saveStatus: 'dirty',
+      });
+      get().showToast(`Versión restaurada: ${label}.`, 'success');
+    },
+
     setTheme: (theme) => {
-      saveTheme(theme);
+      saveThemeMode(theme);
       applyTheme(theme);
-      set({ theme });
+      set({ theme, themeMode: theme });
+    },
+
+    setThemeMode: (mode) => {
+      const theme = resolveTheme(mode);
+      saveThemeMode(mode);
+      applyTheme(theme);
+      set({ theme, themeMode: mode });
     },
 
     toggleTheme: () => {
@@ -1093,6 +1174,76 @@ export const useLienzo = create<LienzoState>()((set, get) => {
         presentation: null,
         viewport: presentation.returnViewport,
       });
+    },
+
+    openTimer: () => {
+      const timer = get().timer;
+      set({ timer: { ...timer, visible: true } });
+    },
+
+    startTimer: (minutes) => {
+      const duration = Math.max(1, Math.min(180, Math.round(minutes ?? get().timer.duration)));
+      const ms = duration * 60 * 1000;
+      set({
+        timer: {
+          visible: true,
+          duration,
+          endsAt: Date.now() + ms,
+          remaining: ms,
+          running: true,
+        },
+      });
+    },
+
+    toggleTimer: () => {
+      const timer = get().timer;
+      if (timer.running) {
+        const remaining = Math.max(0, (timer.endsAt ?? Date.now()) - Date.now());
+        set({
+          timer: { ...timer, running: false, endsAt: null, remaining },
+        });
+        return;
+      }
+      const remaining = timer.remaining > 0 ? timer.remaining : timer.duration * 60 * 1000;
+      set({
+        timer: {
+          ...timer,
+          visible: true,
+          running: true,
+          endsAt: Date.now() + remaining,
+          remaining,
+        },
+      });
+    },
+
+    resetTimer: () => {
+      const timer = get().timer;
+      set({
+        timer: {
+          ...timer,
+          running: false,
+          endsAt: null,
+          remaining: timer.duration * 60 * 1000,
+        },
+      });
+    },
+
+    finishTimer: () => {
+      const timer = get().timer;
+      set({
+        timer: {
+          ...timer,
+          running: false,
+          endsAt: null,
+          remaining: 0,
+        },
+      });
+      get().showToast('Tiempo de foco completado. Tómate una pausa.', 'success');
+    },
+
+    closeTimer: () => {
+      const timer = get().timer;
+      set({ timer: { ...timer, visible: false } });
     },
 
     connectCollab: async (baseUrl) => {

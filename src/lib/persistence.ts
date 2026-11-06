@@ -1,5 +1,6 @@
-import { useLienzo } from '../store/boardStore';
+import { currentBoardOf, useLienzo } from '../store/boardStore';
 import { saveBoards } from './storage';
+import { autoSnapshot } from './versions';
 
 let timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -13,6 +14,8 @@ export function attachPersistence(): () => void {
       timer = null;
       await saveBoards(useLienzo.getState().boards);
       useLienzo.setState({ saveStatus: 'saved' });
+      const board = currentBoardOf(useLienzo.getState());
+      if (board) void autoSnapshot(board);
     }, 450);
   });
   return () => {

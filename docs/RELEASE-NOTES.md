@@ -1,57 +1,60 @@
-# LIENZO xD 1.2.1
+# tiza 1.3.0
 
-![LIENZO xD](https://raw.githubusercontent.com/ismael567-wq/LIENZO-xD/main/docs/screenshots/portada.png)
+![tiza](https://raw.githubusercontent.com/ismael567-wq/LIENZO-xD/main/docs/screenshots/portada.png)
 
-Actualización de mantenimiento de Lienzo, la pizarra visual **local-first** para Windows, web y móvil. Esta versión arregla la instalación sobre versiones anteriores y añade un comprobador de actualizaciones dentro de la app.
-
-## Descargar
-
-- **Instalador Windows x64:** `Lienzo-Setup-1.2.1.exe`
-- **Portable Windows x64:** `Lienzo-1.2.1-portable.exe`
-
-También puedes generarlos desde el código:
-
-```bash
-npm install
-npm run desktop:installer   # release/Lienzo-Setup-1.2.1.exe
-npm run desktop:portable    # release/Lienzo-1.2.1-portable.exe
-```
-
-El ejecutable no está firmado. Si Windows muestra “Windows protegió tu PC”:
-
-1. Pulsa **Más información**.
-2. Pulsa **Ejecutar de todas formas**.
+**tiza — pizarras en vivo.** La pizarra visual local-first para Windows, web y móvil estrena identidad y una primera tanda de funciones de productividad. Sin cuentas, sin nube y con tus tableros en tu dispositivo.
 
 ## Novedades
 
-- **Botón Opciones** en la barra superior y en el panel lateral, con la versión instalada.
-- **Comprobador de actualizaciones** contra GitHub, con aviso visual cuando hay una versión nueva.
-- **Descarga e instalación desde la app**: descarga el instalador y abre el asistente de Windows.
-- **Entrada en la paleta de comandos**: «Opciones y actualizaciones».
-- **Versión real** en el diálogo Acerca de.
+- **Nueva identidad tiza**: logo de sonrisa de tiza, iconos, manifest y textos de la app.
+- **Rediseño v2**: tema noche como principal, tema día, selector automático, Space Grotesk + Inter + JetBrains Mono y acabado nuevo en dashboard, tablero, menús, modales y móvil.
+- **Búsqueda en la pizarra** con `Ctrl/Cmd+F`.
+- **Historial de versiones** con instantáneas automáticas, guardado manual y restauración.
+- **Temporizador de foco** de 15, 25 o 50 minutos.
+- **Bloqueo de pizarra** en solo lectura.
+- Exportación JSON con extensión `.tiza.json`.
+- Barra superior móvil simplificada, cámara ajustada al ancho real y objetivos táctiles de 44 px.
 
-## Correcciones
+## Accesibilidad
 
-- La actualización ya no falla con «Fallo al desinstalar archivos antiguos de la aplicación» cuando el desinstalador de la versión anterior devuelve un error. El instalador limpia la carpeta anterior y continúa.
-- El flujo de actualización abre el asistente interactivo en lugar de una instalación silenciosa que podía terminar sin instalar nada.
-- Tus tableros, preferencias y datos locales se conservan al actualizar.
-
-## Actualizar desde 1.2.0 o anterior
-
-1. Abre Lienzo.
-2. Pulsa el engranaje **Opciones**.
-3. Pulsa **Buscar actualizaciones**.
-4. Cuando aparezca la versión nueva, pulsa **Descargar e instalar**.
-5. Se abrirá el asistente de Windows. Lienzo se cerrará para dejar instalar la nueva versión.
-
-Si prefieres hacerlo a mano, descarga `Lienzo-Setup-1.2.1.exe` desde esta release y ejecútalo. No es necesario desinstalar antes.
+- 48/48 combinaciones de contraste WCAG AA verificadas.
+- Foco visible, etiquetas ARIA, reducción de movimiento y controles táctiles de 44 px.
+- El canvas sigue sin navegación individual completa por lector de pantalla; es un límite conocido.
 
 ## Verificación
 
 - `npm run typecheck` sin errores.
 - 29 pruebas unitarias aprobadas.
 - `npm run build` correcto.
-- Comprobación de la app de escritorio: versión, diálogo de Opciones, búsqueda de actualizaciones y carga de tableros existentes.
+- `npm run contraste` → 48/48 AA.
+- QA visual en navegador real a 1440×900 y 390×844.
+
+## Pendiente
+
+El rediseño está aplicado, pero no las 90 ideas de los informes. Se han implementado 4 de las 13 ideas de v1.3; quedan v1.4 (42), v2.0 (31) y v2.0+ (4). Entre lo pendiente: exportación PDF/SVG, anclas laterales de conectores, cualquier archivo, notas de voz/vídeo y flashcards.
+
+Detalle completo en [`docs/TIZA-V2.md`](TIZA-V2.md).
+
+## Descargar
+
+Los artefactos se generan desde el código:
+
+```bash
+npm install
+npm run desktop:installer   # release/tiza-Setup-1.3.0.exe
+npm run desktop:portable    # release/tiza-1.3.0-portable.exe
+```
+
+El ejecutable no está firmado. Si Windows muestra “Windows protegió tu PC”: **Más información → Ejecutar de todas formas**.
+
+## Actualizar
+
+1. Abre tiza.
+2. Pulsa el engranaje **Opciones**.
+3. Pulsa **Buscar actualizaciones**.
+4. Cuando aparezca la versión nueva, pulsa **Descargar e instalar**.
+
+Tus tableros y preferencias se conservan. Las claves internas `lienzo:*` se mantienen para no invalidar datos de versiones anteriores.
 
 ## Límites conocidos
 

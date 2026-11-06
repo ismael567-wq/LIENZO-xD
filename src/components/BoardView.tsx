@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ImagePlus,
+  Lock,
   MessageSquarePlus,
   SlidersHorizontal,
   X,
@@ -211,7 +212,10 @@ export function BoardView() {
       if (mobile) {
         const bounds = boundsOfItems(board.items);
         if (bounds) {
-          const zoom = Math.min(0.62, Math.max(0.38, 720 / Math.max(bounds.w, 1)));
+          // En pantallas estrechas priorizamos que quepa el ancho real del
+          // lienzo, no una columna fija de 720 px pensada para tablet.
+          const available = Math.max(240, state.stageSize.w - 32);
+          const zoom = Math.min(0.62, Math.max(0.24, available / Math.max(bounds.w, 1)));
           state.setViewport({
             zoom,
             x: 16 - bounds.x * zoom,
@@ -378,6 +382,11 @@ export function BoardView() {
         state.redo();
         return;
       }
+      if (mod && key === 'f') {
+        event.preventDefault();
+        state.setUi('search', true);
+        return;
+      }
       if (mod && key === 'k') {
         event.preventDefault();
         state.setUi('command', true);
@@ -395,7 +404,7 @@ export function BoardView() {
       }
       if (mod && key === 's') {
         event.preventDefault();
-        state.showToast('Lienzo guarda automáticamente en este dispositivo.', 'success');
+        state.showToast('tiza guarda automáticamente en este dispositivo.', 'success');
         return;
       }
       if (mod && key === 'g') {
@@ -552,7 +561,7 @@ export function BoardView() {
           selected={selected}
           editingId={editingId}
           snapToGrid={snapToGrid}
-          readOnly={Boolean(presentation)}
+          readOnly={Boolean(presentation) || Boolean(board.locked)}
           clip={presentationClip}
           onContextMenu={(world, item, screen) => {
             setContextMenu({ world, item, screen });
@@ -564,6 +573,17 @@ export function BoardView() {
         />
 
         <TextEditor board={board} viewport={viewport} />
+
+        {board.locked && !presentation ? (
+          <button
+            type="button"
+            className="canvas-locked-banner"
+            onClick={() => useLienzo.getState().toggleBoardLock()}
+            title="Desbloquear la pizarra"
+          >
+            <Lock size={13} /> Pizarra bloqueada · solo lectura
+          </button>
+        ) : null}
 
         {!presentation && !zen ? (
           <>

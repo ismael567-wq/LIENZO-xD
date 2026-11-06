@@ -10,6 +10,7 @@ installed-test/
 .lienzo-packaged-profile/
 .npm-cache/
 *.log
+docs/screenshots/e2e-*.png
 .env
 .DS_Store
 android/app/src/main/assets/public/

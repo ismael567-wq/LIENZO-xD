@@ -1,6 +1,6 @@
 {
-  "appId": "app.lienzo.desktop",
-  "productName": "Lienzo",
+  "appId": "app.tiza.desktop",
+  "productName": "tiza",
   "directories": {
     "output": "release",
     "buildResources": "build"
@@ -26,7 +26,7 @@
     "icon": "build/icon.ico"
   },
   "portable": {
-    "artifactName": "Lienzo-${version}-portable.exe"
+    "artifactName": "tiza-${version}-portable.exe"
   },
   "nsis": {
     "oneClick": false,
@@ -35,10 +35,10 @@
     "allowToChangeInstallationDirectory": true,
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
-    "shortcutName": "Lienzo",
+    "shortcutName": "tiza",
     "runAfterFinish": true,
     "deleteAppDataOnUninstall": false,
-    "artifactName": "Lienzo-Setup-${version}.exe",
+    "artifactName": "tiza-Setup-${version}.exe",
     "license": "LICENSE",
     "include": "build/installer.nsh"
   }

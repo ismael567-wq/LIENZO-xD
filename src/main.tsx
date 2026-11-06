@@ -1,7 +1,8 @@
 import { createRoot } from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import '@fontsource-variable/inter';
-import '@fontsource/instrument-serif';
+import '@fontsource-variable/space-grotesk';
+import '@fontsource-variable/jetbrains-mono';
 import './styles/global.css';
 import App from './App';
 

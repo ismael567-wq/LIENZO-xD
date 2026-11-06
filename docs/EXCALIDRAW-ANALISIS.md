@@ -1,6 +1,6 @@
-# Análisis de Excalidraw aplicado a LIENZO xD
+# Análisis de Excalidraw aplicado a tiza
 
-Este documento resume la lectura de Excalidraw usada como referencia de producto y de interfaz para la tanda de mejoras de LIENZO xD. No es una copia de su código: Excalidraw es MIT y su arquitectura (React + Canvas 2D + estado centralizado) es parecida a la nuestra, así que sirve como buena fuente de patrones.
+Este documento resume la lectura de Excalidraw usada como referencia de producto y de interfaz para la tanda de mejoras de tiza. No es una copia de su código: Excalidraw es MIT y su arquitectura (React + Canvas 2D + estado centralizado) es parecida a la nuestra, así que sirve como buena fuente de patrones.
 
 Referencia analizada: [`excalidraw/excalidraw`](https://github.com/excalidraw/excalidraw), paquete `packages/excalidraw`.
 
@@ -27,13 +27,13 @@ Resultado de la corrida:
 - 849 hallazgos, casi todos de **flujo de datos dinámico** (`unknown-value`, `dynamic-call`, `ambiguous-target`) porque `App.tsx` concentra miles de líneas y el estado pasa por callbacks y referencias.
 - 0 fallos de parseo y 0 archivos con UTF-8 inválido.
 
-La evidencia completa quedó en `rea-excalidraw-summary2.json` durante la sesión de análisis. Los hallazgos no son defectos de Excalidraw: son límites del análisis estático ante un componente enorme con estado dinámico. Para LIENZO la lección es mantener componentes pequeños y el estado en el store, no replicar ese monolito.
+La evidencia completa quedó en `rea-excalidraw-summary2.json` durante la sesión de análisis. Los hallazgos no son defectos de Excalidraw: son límites del análisis estático ante un componente enorme con estado dinámico. Para tiza la lección es mantener componentes pequeños y el estado en el store, no replicar ese monolito.
 
 ## 2. Patrones de interfaz que adoptamos
 
 ### 2.1 Barra flotante inferior
 
-Excalidraw coloca las herramientas principales en una barra flotante centrada, cerca del pulgar y del puntero, y deja las acciones secundarias en menús. LIENZO tenía una barra lateral; la cambiamos por una barra inferior con:
+Excalidraw coloca las herramientas principales en una barra flotante centrada, cerca del pulgar y del puntero, y deja las acciones secundarias en menús. tiza tenía una barra lateral; la cambiamos por una barra inferior con:
 
 - Herramientas primarias: seleccionar, mano, nota, texto, forma, conector, dibujo, resaltador, láser.
 - Acciones de inserción: imagen, marco, comentario, borrar, plantillas.
@@ -44,7 +44,7 @@ En móvil se mantiene el dock inferior, ahora con láser.
 
 ### 2.2 Acciones rápidas sobre la selección
 
-Excalidraw muestra acciones junto al objeto seleccionado en lugar de obligar a ir al panel. LIENZO incorpora `QuickActions`:
+Excalidraw muestra acciones junto al objeto seleccionado en lugar de obligar a ir al panel. tiza incorpora `QuickActions`:
 
 - Contador de elementos seleccionados.
 - Duplicar, copiar como PNG, agrupar/desagrupar, traer al frente, enviar al fondo, bloquear y eliminar.
@@ -61,7 +61,7 @@ Se cierra con `Esc` o al hacer clic fuera y se mantiene dentro del viewport.
 
 ### 2.4 Inspector contextual
 
-Excalidraw separa propiedades por tipo de elemento. LIENZO amplía el inspector existente con:
+Excalidraw separa propiedades por tipo de elemento. tiza amplía el inspector existente con:
 
 - Relleno: sólido, rayado, cruzado y puntos.
 - Borde: sólido, guiones y puntos; esquinas vivas o redondeadas.
@@ -71,7 +71,7 @@ Excalidraw separa propiedades por tipo de elemento. LIENZO amplía el inspector 
 
 ### 2.5 Tema oscuro
 
-Excalidraw permite alternar tema claro/oscuro y adapta el lienzo, no solo la interfaz. LIENZO añade:
+Excalidraw permite alternar tema claro/oscuro y adapta el lienzo, no solo la interfaz. tiza añade:
 
 - Tema persistido en `localStorage` y aplicado con `data-theme` en `<html>`.
 - Paleta oscura para papel, tinta, superficie, líneas y sombras.
@@ -81,7 +81,7 @@ Excalidraw permite alternar tema claro/oscuro y adapta el lienzo, no solo la int
 
 ### 2.6 Puntero láser
 
-El láser de Excalidraw es una herramienta efímera: no crea elementos ni historial. En LIENZO:
+El láser de Excalidraw es una herramienta efímera: no crea elementos ni historial. En tiza:
 
 - La tecla `K` activa el puntero láser.
 - El trazo se dibuja en un canvas superpuesto al render normal.
@@ -94,7 +94,7 @@ Equivalente al zen de Excalidraw: oculta barra superior, paneles, toolbar y esta
 
 ### 2.8 Exportación y portapapeles
 
-Excalidraw permite exportar la escena completa o la selección y copiar PNG. LIENZO añade:
+Excalidraw permite exportar la escena completa o la selección y copiar PNG. tiza añade:
 
 - PNG del tablero completo.
 - PNG solo de la selección, con recorte a sus límites.
@@ -104,7 +104,7 @@ Excalidraw permite exportar la escena completa o la selección y copiar PNG. LIE
 
 ## 3. Modelo de datos
 
-Excalidraw usa elementos con propiedades opcionales y vínculos por id. LIENZO mantiene su modelo local-first y añade campos opcionales para no romper tableros existentes:
+Excalidraw usa elementos con propiedades opcionales y vínculos por id. tiza mantiene su modelo local-first y añade campos opcionales para no romper tableros existentes:
 
 ```ts
 type Theme = 'light' | 'dark';
@@ -156,7 +156,7 @@ El render sigue en Canvas 2D para conservar el rendimiento y la arquitectura loc
 
 ## 5. Qué no se copió
 
-Excalidraw es mucho más grande y resuelve problemas que LIENZO no necesita todavía:
+Excalidraw es mucho más grande y resuelve problemas que tiza no necesita todavía:
 
 - Colaboración CRDT, cifrado extremo a extremo y salas en la nube.
 - Biblioteca de elementos, integraciones y ecosistema de plugins.
@@ -164,7 +164,7 @@ Excalidraw es mucho más grande y resuelve problemas que LIENZO no necesita toda
 - Historial colaborativo y presencia a gran escala.
 - i18n completa y accesibilidad avanzada.
 
-LIENZO mantiene su propuesta: **local-first, sin cuentas, sin nube y con colaboración LAN**. Las mejoras toman los gestos y la ergonomía de Excalidraw, no su infraestructura.
+tiza mantiene su propuesta: **local-first, sin cuentas, sin nube y con colaboración LAN**. Las mejoras toman los gestos y la ergonomía de Excalidraw, no su infraestructura.
 
 ## 6. Verificación
 
