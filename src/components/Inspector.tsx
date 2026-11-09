@@ -5,22 +5,29 @@ import {
   Circle,
   Copy,
   Diamond,
+  Download,
+  ExternalLink,
+  FileText,
   Frame,
   Image as ImageIcon,
   Layers,
   Lock,
   MessageCircle,
   Palette,
+  Pause,
   PenLine,
+  Play,
+  RotateCcw,
   Square,
   StickyNote,
+  Timer,
   Trash2,
   Type,
   Ungroup,
   Unlock,
   X,
 } from 'lucide-react';
-import type { Board, BoardItem, ConnectorItem } from '../types';
+import type { Board, BoardItem, ConnectorCap, ConnectorItem, FrameBackground } from '../types';
 import { getBoardStats, useLienzo } from '../store/boardStore';
 import {
   DRAW_COLORS,
@@ -28,6 +35,8 @@ import {
   SHAPE_STROKES,
   STICKY_COLORS,
 } from '../lib/theme';
+import { formatBytes } from '../lib/files';
+import { downloadStoredFile, openStoredFile } from '../lib/files';
 import { itemTypeLabel } from '../lib/geometry';
 import { initials } from './Logo';
 
@@ -54,6 +63,10 @@ function typeIcon(item: BoardItem) {
       return <PenLine size={15} />;
     case 'image':
       return <ImageIcon size={15} />;
+    case 'file':
+      return <FileText size={15} />;
+    case 'timer':
+      return <Timer size={15} />;
     default:
       return <Layers size={15} />;
   }
@@ -196,6 +209,8 @@ export function Inspector({ board, onClose, onImageReplace, onTemplates }: Inspe
   const isFrame = single?.type === 'frame';
   const isImage = single?.type === 'image';
   const isDraw = single?.type === 'draw';
+  const isFile = single?.type === 'file';
+  const isTimer = single?.type === 'timer';
 
   const commonFill =
     single && 'fill' in single
@@ -549,6 +564,29 @@ export function Inspector({ board, onClose, onImageReplace, onTemplates }: Inspe
                     onChange={(fill) => updateSelected({ fill })}
                   />
                 </Section>
+                <Section title="Textura del marco">
+                  <div className="segmented segmented-wrap">
+                    {(
+                      [
+                        ['plain', 'Liso'],
+                        ['dots', 'Puntos'],
+                        ['grid', 'Cuadrícula'],
+                        ['lines', 'Pauta'],
+                        ['music', 'Pentagrama'],
+                        ['axes', 'Ejes'],
+                      ] as const satisfies ReadonlyArray<readonly [FrameBackground, string]>
+                    ).map(([background, label]) => (
+                      <button
+                        key={background}
+                        type="button"
+                        className={(single.background ?? 'plain') === background ? 'is-active' : ''}
+                        onClick={() => updateSelected({ background })}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </Section>
               </>
             ) : null}
 
@@ -630,6 +668,46 @@ export function Inspector({ board, onClose, onImageReplace, onTemplates }: Inspe
                     }}
                   />
                 </Section>
+                <Section title="Extremos">
+                  <div className="field-row">
+                    <label className="select-field">
+                      <span>Inicio</span>
+                      <select
+                        value={connector.startCap ?? (connector.arrowStart ? 'arrow' : 'none')}
+                        onChange={(event) =>
+                          updateSelected({
+                            startCap: event.target.value as ConnectorCap,
+                            arrowStart: event.target.value === 'arrow',
+                          })
+                        }
+                      >
+                        <option value="none">Sin punta</option>
+                        <option value="arrow">Flecha</option>
+                        <option value="dot">Punto</option>
+                        <option value="crowfoot">Crowfoot</option>
+                        <option value="crowfoot-many">Crowfoot muchos</option>
+                      </select>
+                    </label>
+                    <label className="select-field">
+                      <span>Final</span>
+                      <select
+                        value={connector.endCap ?? (connector.arrowEnd ? 'arrow' : 'none')}
+                        onChange={(event) =>
+                          updateSelected({
+                            endCap: event.target.value as ConnectorCap,
+                            arrowEnd: event.target.value === 'arrow',
+                          })
+                        }
+                      >
+                        <option value="none">Sin punta</option>
+                        <option value="arrow">Flecha</option>
+                        <option value="dot">Punto</option>
+                        <option value="crowfoot">Crowfoot</option>
+                        <option value="crowfoot-many">Crowfoot muchos</option>
+                      </select>
+                    </label>
+                  </div>
+                </Section>
               </>
             ) : null}
 
@@ -676,6 +754,149 @@ export function Inspector({ board, onClose, onImageReplace, onTemplates }: Inspe
                   <small>{single.radius} px</small>
                 </label>
               </Section>
+            ) : null}
+
+            {isFile ? (
+              <Section title="Archivo">
+                <p className="muted-copy">
+                  <strong>{single.name}</strong>
+                  <br />
+                  {formatBytes(single.size)} · {single.mime || 'tipo desconocido'}
+                  {single.pages ? ` · página ${single.page ?? 1}/${single.pages}` : ''}
+                </p>
+                <div className="segmented">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void openStoredFile(single.fileId).catch((error) =>
+                        showToast(
+                          error instanceof Error ? error.message : 'No se pudo abrir.',
+                          'error',
+                        ),
+                      );
+                    }}
+                  >
+                    <ExternalLink size={14} /> Abrir
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void downloadStoredFile(single.fileId, single.name).catch((error) =>
+                        showToast(
+                          error instanceof Error ? error.message : 'No se pudo descargar.',
+                          'error',
+                        ),
+                      );
+                    }}
+                  >
+                    <Download size={14} /> Descargar
+                  </button>
+                </div>
+                {single.pages && single.pages > 1 ? (
+                  <div className="segmented">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateItem(single.id, {
+                          page: Math.max(1, (single.page ?? 1) - 1),
+                        })
+                      }
+                    >
+                      ← Página
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateItem(single.id, {
+                          page: Math.min(single.pages ?? 1, (single.page ?? 1) + 1),
+                        })
+                      }
+                    >
+                      Página →
+                    </button>
+                  </div>
+                ) : null}
+              </Section>
+            ) : null}
+
+            {isTimer ? (
+              <>
+                <Section title="Temporizador">
+                  <input
+                    className="text-input"
+                    defaultValue={single.label}
+                    key={`${single.id}-label`}
+                    onBlur={(event) => {
+                      const label = event.currentTarget.value.trim() || 'Tiempo';
+                      if (label !== single.label) updateItem(single.id, { label });
+                    }}
+                  />
+                  <NumberField
+                    label="Minutos"
+                    value={Math.round(single.duration / 60)}
+                    suffix="min"
+                    onCommit={(value) => {
+                      const minutes = Math.max(1, Math.min(180, Math.round(value)));
+                      updateItem(single.id, {
+                        duration: minutes * 60,
+                        remaining: minutes * 60,
+                        running: false,
+                        endsAt: null,
+                      });
+                    }}
+                  />
+                  <div className="segmented">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = Date.now();
+                        if (single.running) {
+                          updateItem(single.id, {
+                            running: false,
+                            endsAt: null,
+                            remaining: Math.max(
+                              0,
+                              Math.ceil(((single.endsAt ?? now) - now) / 1000),
+                            ),
+                          });
+                        } else {
+                          const remaining =
+                            single.remaining > 0 ? single.remaining : single.duration;
+                          updateItem(single.id, {
+                            running: true,
+                            endsAt: now + remaining * 1000,
+                            remaining,
+                          });
+                        }
+                      }}
+                    >
+                      {single.running ? <Pause size={14} /> : <Play size={14} />}
+                      {single.running ? 'Pausar' : 'Iniciar'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateItem(single.id, {
+                          running: false,
+                          endsAt: null,
+                          remaining: single.duration,
+                        })
+                      }
+                    >
+                      <RotateCcw size={14} /> Reiniciar
+                    </button>
+                  </div>
+                  <div className="toggle-row">
+                    <button
+                      type="button"
+                      className={single.sound ? 'is-active' : ''}
+                      onClick={() => updateItem(single.id, { sound: !single.sound })}
+                    >
+                      Campana al terminar
+                    </button>
+                  </div>
+                </Section>
+              </>
             ) : null}
 
             <Section title="Posición y tamaño">

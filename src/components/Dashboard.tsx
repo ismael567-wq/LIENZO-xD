@@ -6,11 +6,14 @@ import {
   Clock3,
   Download,
   FileJson,
+  Folder,
+  FolderPlus,
   Image as ImageIcon,
   LayoutGrid,
   LayoutTemplate,
   MoreHorizontal,
   Plus,
+  RotateCcw,
   Search,
   Settings,
   ShieldCheck,
@@ -27,7 +30,10 @@ import { createBoard, TEMPLATES, DEFAULT_BOARD_NAME } from '../lib/templates';
 import { exportBoardJSON, exportBoardPNG } from '../lib/export';
 import { hasPendingUpdate, useUpdates } from '../store/updateStore';
 
-type Filter = 'all' | 'recent' | 'favorites';
+type Filter = 'all' | 'recent' | 'favorites' | 'trash' | `folder:${string}`;
+
+const folderOfFilter = (filter: Filter): string | null =>
+  filter.startsWith('folder:') ? filter.slice('folder:'.length) : null;
 
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -49,11 +55,15 @@ function useOutsideClose(
   }, [open, ref, close]);
 }
 
-function BoardCard({ board }: { board: Board }) {
+function BoardCard({ board, trashed = false }: { board: Board; trashed?: boolean }) {
   const openBoard = useLienzo((state) => state.openBoard);
   const renameBoard = useLienzo((state) => state.renameBoard);
   const duplicateBoard = useLienzo((state) => state.duplicateBoard);
   const deleteBoard = useLienzo((state) => state.deleteBoard);
+  const restoreBoard = useLienzo((state) => state.restoreBoard);
+  const purgeBoard = useLienzo((state) => state.purgeBoard);
+  const moveBoardToFolder = useLienzo((state) => state.moveBoardToFolder);
+  const folders = useLienzo((state) => state.folders);
   const toggleFavorite = useLienzo((state) => state.toggleFavorite);
   const showToast = useLienzo((state) => state.showToast);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -72,120 +82,193 @@ function BoardCard({ board }: { board: Board }) {
     setRenaming(false);
   };
 
+  const openCard = () => {
+    if (trashed) {
+      showToast('Restaura el tablero para poder abrirlo.', 'info');
+      return;
+    }
+    openBoard(board.id);
+  };
+
   return (
-    <article className="board-card">
+    <article className={`board-card ${trashed ? 'is-trashed' : ''}`}>
       <div
         className="board-card-preview"
-        role="button"
-        tabIndex={0}
-        onClick={() => openBoard(board.id)}
+        role={trashed ? undefined : 'button'}
+        tabIndex={trashed ? -1 : 0}
+        onClick={openCard}
         onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
+          if (!trashed && (event.key === 'Enter' || event.key === ' ')) {
             event.preventDefault();
             openBoard(board.id);
           }
         }}
-        aria-label={`Abrir ${board.name}`}
+        aria-label={trashed ? `${board.name}, en la papelera` : `Abrir ${board.name}`}
       >
         <BoardPreview board={board} padding={24} />
-        <span className="board-card-open-hint">
-          Abrir <ArrowUpRight size={13} />
+        <span className={`board-card-open-hint ${trashed ? 'is-trash' : ''}`}>
+          {trashed ? (
+            <>
+              <Trash2 size={13} /> En papelera
+            </>
+          ) : (
+            <>
+              Abrir <ArrowUpRight size={13} />
+            </>
+          )}
         </span>
       </div>
-      <button
-        type="button"
-        className={`card-star ${board.favorite ? 'is-active' : ''}`}
-        onClick={(event) => {
-          event.stopPropagation();
-          toggleFavorite(board.id);
-        }}
-        aria-label={board.favorite ? 'Quitar de favoritos' : 'Añadir a favoritos'}
-        title={board.favorite ? 'Quitar de favoritos' : 'Añadir a favoritos'}
-      >
-        <Star size={14} fill={board.favorite ? 'currentColor' : 'none'} />
-      </button>
-      <div className="board-card-menu-wrap" ref={menuRef}>
+      {!trashed ? (
         <button
           type="button"
-          className="card-menu-btn"
-          onClick={() => setMenuOpen((open) => !open)}
-          aria-label="Opciones del tablero"
-          aria-expanded={menuOpen}
+          className={`card-star ${board.favorite ? 'is-active' : ''}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            toggleFavorite(board.id);
+          }}
+          aria-label={board.favorite ? 'Quitar de favoritos' : 'Añadir a favoritos'}
+          title={board.favorite ? 'Quitar de favoritos' : 'Añadir a favoritos'}
         >
-          <MoreHorizontal size={16} />
+          <Star size={14} fill={board.favorite ? 'currentColor' : 'none'} />
         </button>
-        {menuOpen ? (
-          <div className="menu card-menu" role="menu">
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setMenuOpen(false);
-                openBoard(board.id);
-              }}
-            >
-              <ArrowUpRight size={15} /> Abrir
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setMenuOpen(false);
-                setRenaming(true);
-              }}
-            >
-              <Plus size={15} /> Renombrar
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setMenuOpen(false);
-                duplicateBoard(board.id);
-              }}
-            >
-              <LayoutGrid size={15} /> Duplicar
-            </button>
-            <div className="menu-separator" />
-            <button
-              type="button"
-              role="menuitem"
-              onClick={async () => {
-                setMenuOpen(false);
-                await exportBoardPNG(board);
-                showToast('PNG exportado.', 'success');
-              }}
-            >
-              <ImageIcon size={15} /> Exportar PNG
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setMenuOpen(false);
-                exportBoardJSON(board);
-                showToast('Archivo tiza exportado.', 'success');
-              }}
-            >
-              <FileJson size={15} /> Exportar JSON
-            </button>
-            <div className="menu-separator" />
-            <button
-              type="button"
-              role="menuitem"
-              className="is-danger"
-              onClick={() => {
-                setMenuOpen(false);
-                if (window.confirm(`¿Eliminar «${board.name}»?`)) deleteBoard(board.id);
-              }}
-            >
-              <Trash2 size={15} /> Eliminar
-            </button>
-          </div>
-        ) : null}
-      </div>
+      ) : null}
+      {!trashed ? (
+        <div className="board-card-menu-wrap" ref={menuRef}>
+          <button
+            type="button"
+            className="card-menu-btn"
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-label="Opciones del tablero"
+            aria-expanded={menuOpen}
+          >
+            <MoreHorizontal size={16} />
+          </button>
+          {menuOpen ? (
+            <div className="menu card-menu" role="menu">
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  openBoard(board.id);
+                }}
+              >
+                <ArrowUpRight size={15} /> Abrir
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setRenaming(true);
+                }}
+              >
+                <Plus size={15} /> Renombrar
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  duplicateBoard(board.id);
+                }}
+              >
+                <LayoutGrid size={15} /> Duplicar
+              </button>
+              <div className="menu-separator" />
+              <div className="menu-label">Mover a carpeta</div>
+              <button
+                type="button"
+                role="menuitem"
+                className={!board.folder ? 'is-selected' : ''}
+                onClick={() => {
+                  setMenuOpen(false);
+                  moveBoardToFolder(board.id, null);
+                }}
+              >
+                <Folder size={15} /> Sin carpeta
+                {!board.folder ? <Check size={13} /> : null}
+              </button>
+              {folders.map((folder) => (
+                <button
+                  key={folder}
+                  type="button"
+                  role="menuitem"
+                  className={board.folder === folder ? 'is-selected' : ''}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    moveBoardToFolder(board.id, folder);
+                  }}
+                >
+                  <Folder size={15} /> {folder}
+                  {board.folder === folder ? <Check size={13} /> : null}
+                </button>
+              ))}
+              <div className="menu-separator" />
+              <button
+                type="button"
+                role="menuitem"
+                onClick={async () => {
+                  setMenuOpen(false);
+                  await exportBoardPNG(board);
+                  showToast('PNG exportado.', 'success');
+                }}
+              >
+                <ImageIcon size={15} /> Exportar PNG
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  exportBoardJSON(board);
+                  showToast('Archivo tiza exportado.', 'success');
+                }}
+              >
+                <FileJson size={15} /> Exportar JSON
+              </button>
+              <div className="menu-separator" />
+              <button
+                type="button"
+                role="menuitem"
+                className="is-danger"
+                onClick={() => {
+                  setMenuOpen(false);
+                  if (window.confirm(`¿Mover «${board.name}» a la papelera?`)) {
+                    deleteBoard(board.id);
+                  }
+                }}
+              >
+                <Trash2 size={15} /> Mover a la papelera
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <div className="board-card-trash-actions">
+          <button
+            type="button"
+            onClick={() => restoreBoard(board.id)}
+            aria-label={`Restaurar ${board.name}`}
+          >
+            <RotateCcw size={14} /> Restaurar
+          </button>
+          <button
+            type="button"
+            className="is-danger"
+            onClick={() => {
+              if (window.confirm(`¿Eliminar «${board.name}» para siempre?`)) {
+                purgeBoard(board.id);
+              }
+            }}
+            aria-label={`Eliminar definitivamente ${board.name}`}
+          >
+            <Trash2 size={14} /> Borrar
+          </button>
+        </div>
+      )}
       <div className="board-card-foot">
-        {renaming ? (
+        {renaming && !trashed ? (
           <input
             className="board-rename-input"
             autoFocus
@@ -201,12 +284,20 @@ function BoardCard({ board }: { board: Board }) {
             }}
           />
         ) : (
-          <button type="button" className="board-card-name" onClick={() => openBoard(board.id)}>
+          <button
+            type="button"
+            className="board-card-name"
+            onClick={openCard}
+            disabled={trashed}
+          >
             {board.name}
           </button>
         )}
         <p className="board-card-meta">
-          {stats.items} elementos · {stats.updated}
+          {trashed
+            ? `Eliminado el ${new Date(board.deletedAt ?? Date.now()).toLocaleDateString('es-ES')}`
+            : `${stats.items} elementos · ${stats.updated}`}
+          {!trashed && board.folder ? ` · ${board.folder}` : ''}
         </p>
       </div>
     </article>
@@ -248,6 +339,14 @@ export function Dashboard() {
   const [query, setQuery] = useState('');
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(userName);
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [folderDraft, setFolderDraft] = useState('');
+  const folders = useLienzo((state) => state.folders);
+  const createFolder = useLienzo((state) => state.createFolder);
+  const renameFolder = useLienzo((state) => state.renameFolder);
+  const deleteFolder = useLienzo((state) => state.deleteFolder);
+  const restoreBoard = useLienzo((state) => state.restoreBoard);
+  const emptyTrash = useLienzo((state) => state.emptyTrash);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const isDesktopApp = Boolean(window.lienzoDesktop?.isDesktop);
   const pendingUpdate = useUpdates(hasPendingUpdate);
@@ -264,15 +363,28 @@ export function Dashboard() {
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
-  const sorted = useMemo(
-    () => [...boards].sort((a, b) => b.updatedAt - a.updatedAt),
+  const activeBoards = useMemo(
+    () => boards.filter((board) => !board.deletedAt),
     [boards],
+  );
+  const trashedBoards = useMemo(
+    () =>
+      boards
+        .filter((board) => Boolean(board.deletedAt))
+        .sort((a, b) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0)),
+    [boards],
+  );
+  const sorted = useMemo(
+    () => [...activeBoards].sort((a, b) => b.updatedAt - a.updatedAt),
+    [activeBoards],
   );
   const recentBoard = sorted[0];
   const weekAgo = Date.now() - 1000 * 60 * 60 * 24 * 7;
-  const filtered = sorted.filter((board) => {
+  const activeFolder = folderOfFilter(filter);
+  const filtered = (filter === 'trash' ? trashedBoards : sorted).filter((board) => {
     if (filter === 'favorites' && !board.favorite) return false;
     if (filter === 'recent' && board.updatedAt < weekAgo) return false;
+    if (activeFolder && board.folder !== activeFolder) return false;
     if (query.trim() && !board.name.toLowerCase().includes(query.trim().toLowerCase())) return false;
     return true;
   });
@@ -290,11 +402,25 @@ export function Dashboard() {
   const greeting = hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
 
   const navItems: Array<{ id: Filter | 'templates'; label: string; icon: React.ReactNode; count?: number }> = [
-    { id: 'all', label: 'Todos los tableros', icon: <LayoutGrid size={17} />, count: boards.length },
+    { id: 'all', label: 'Todos los tableros', icon: <LayoutGrid size={17} />, count: activeBoards.length },
     { id: 'recent', label: 'Recientes', icon: <Clock3 size={17} /> },
-    { id: 'favorites', label: 'Favoritos', icon: <Star size={17} />, count: boards.filter((board) => board.favorite).length || undefined },
+    { id: 'favorites', label: 'Favoritos', icon: <Star size={17} />, count: activeBoards.filter((board) => board.favorite).length || undefined },
+    { id: 'trash', label: 'Papelera', icon: <Trash2 size={17} />, count: trashedBoards.length || undefined },
     { id: 'templates', label: 'Plantillas', icon: <LayoutTemplate size={17} /> },
   ];
+
+  const submitFolder = () => {
+    const clean = folderDraft.trim();
+    if (clean) {
+      const created = createFolder(clean);
+      if (created) setFilter(`folder:${created}` as Filter);
+    }
+    setFolderDraft('');
+    setCreatingFolder(false);
+  };
+
+  const trashCount = trashedBoards.length;
+  const isTrash = filter === 'trash';
 
   const saveName = () => {
     setUserName(nameDraft);
@@ -343,6 +469,52 @@ export function Dashboard() {
               {item.count ? <small>{item.count}</small> : null}
             </button>
           ))}
+        </nav>
+        <nav className="dash-nav dash-folders" aria-label="Carpetas">
+          <span className="nav-label">Carpetas</span>
+          {folders.map((folder) => (
+            <button
+              key={folder}
+              type="button"
+              className={`nav-item ${filter === `folder:${folder}` ? 'is-active' : ''}`}
+              onClick={() => setFilter(`folder:${folder}`)}
+            >
+              <Folder size={17} />
+              <span>{folder}</span>
+              {activeBoards.filter((board) => board.folder === folder).length > 0 ? (
+                <small>
+                  {activeBoards.filter((board) => board.folder === folder).length}
+                </small>
+              ) : null}
+            </button>
+          ))}
+          {creatingFolder ? (
+            <input
+              className="folder-name-input"
+              autoFocus
+              value={folderDraft}
+              onChange={(event) => setFolderDraft(event.target.value)}
+              onBlur={submitFolder}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') event.currentTarget.blur();
+                if (event.key === 'Escape') {
+                  setFolderDraft('');
+                  setCreatingFolder(false);
+                }
+              }}
+              placeholder="Nombre de la carpeta"
+              aria-label="Nombre de la carpeta"
+            />
+          ) : (
+            <button
+              type="button"
+              className="nav-item nav-item-new"
+              onClick={() => setCreatingFolder(true)}
+            >
+              <FolderPlus size={17} />
+              <span>Nueva carpeta</span>
+            </button>
+          )}
         </nav>
 
         <div className="dash-new-wrap">
@@ -470,7 +642,7 @@ export function Dashboard() {
           </div>
         </section>
 
-        {recentBoard ? (
+        {recentBoard && !isTrash && !activeFolder ? (
           <section className="feature-card">
             <div className="feature-copy">
               <span className="feature-eyebrow">
@@ -526,45 +698,127 @@ export function Dashboard() {
           <div className="section-head">
             <div>
               <h2>
-                {filter === 'favorites'
-                  ? 'Favoritos'
-                  : filter === 'recent'
-                    ? 'Recientes'
-                    : 'Tus tableros'}
+                {isTrash
+                  ? 'Papelera'
+                  : filter === 'favorites'
+                    ? 'Favoritos'
+                    : filter === 'recent'
+                      ? 'Recientes'
+                      : activeFolder
+                        ? activeFolder
+                        : 'Tus tableros'}
               </h2>
-              <span>{filtered.length} en este espacio</span>
+              <span>
+                {isTrash
+                  ? `${filtered.length} tablero${filtered.length === 1 ? '' : 's'} en la papelera`
+                  : `${filtered.length} en este espacio`}
+              </span>
             </div>
-            <button type="button" className="text-link" onClick={() => setUi('newBoard', true)}>
-              <Plus size={14} /> Crear tablero
-            </button>
+            {isTrash ? (
+              <div className="section-head-actions">
+                {trashCount > 0 ? (
+                  <>
+                    <button
+                      type="button"
+                      className="text-link"
+                      onClick={() => trashedBoards.forEach((board) => restoreBoard(board.id))}
+                    >
+                      <RotateCcw size={14} /> Restaurar todo
+                    </button>
+                    <button
+                      type="button"
+                      className="text-link is-danger"
+                      onClick={() => {
+                        if (window.confirm(`¿Vaciar la papelera (${trashCount} tableros)?`)) {
+                          emptyTrash();
+                        }
+                      }}
+                    >
+                      <Trash2 size={14} /> Vaciar papelera
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            ) : activeFolder ? (
+              <div className="section-head-actions">
+                <button
+                  type="button"
+                  className="text-link"
+                  onClick={() => {
+                    const next = window.prompt('Nuevo nombre de la carpeta', activeFolder);
+                    if (next?.trim()) {
+                      renameFolder(activeFolder, next);
+                      setFilter(`folder:${next.trim()}`);
+                    }
+                  }}
+                >
+                  Renombrar carpeta
+                </button>
+                <button
+                  type="button"
+                  className="text-link is-danger"
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        `¿Eliminar la carpeta «${activeFolder}»? Los tableros no se borran.`,
+                      )
+                    ) {
+                      deleteFolder(activeFolder);
+                      setFilter('all');
+                    }
+                  }}
+                >
+                  <Trash2 size={14} /> Eliminar carpeta
+                </button>
+            </div>
+            ) : (
+              <button type="button" className="text-link" onClick={() => setUi('newBoard', true)}>
+                <Plus size={14} /> Crear tablero
+              </button>
+            )}
           </div>
 
           {filtered.length === 0 ? (
             <div className="empty-boards">
-              <LayoutGrid size={28} />
-              <h3>{query ? 'No encontramos ese tablero' : 'Aún no hay tableros aquí'}</h3>
+              {isTrash ? <Trash2 size={28} /> : <LayoutGrid size={28} />}
+              <h3>
+                {query
+                  ? 'No encontramos ese tablero'
+                  : isTrash
+                    ? 'La papelera está vacía'
+                    : activeFolder
+                      ? 'Esta carpeta está vacía'
+                      : 'Aún no hay tableros aquí'}
+              </h3>
               <p>
                 {query
                   ? 'Prueba con otro nombre o limpia la búsqueda.'
-                  : 'Empieza con una plantilla o crea una pizarra en blanco.'}
+                  : isTrash
+                    ? 'Los tableros que muevas aquí podrás restaurarlos cuando quieras.'
+                    : activeFolder
+                      ? 'Mueve tableros a esta carpeta desde el menú de cada tarjeta.'
+                      : 'Empieza con una plantilla o crea una pizarra en blanco.'}
               </p>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => (query ? setQuery('') : setUi('newBoard', true))}
-              >
-                {query ? 'Limpiar búsqueda' : 'Crear mi primer tablero'}
-              </button>
+              {!isTrash ? (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => (query ? setQuery('') : setUi('newBoard', true))}
+                >
+                  {query ? 'Limpiar búsqueda' : activeFolder ? 'Nuevo tablero' : 'Crear mi primer tablero'}
+                </button>
+              ) : null}
             </div>
           ) : (
             <div className="board-grid">
               {filtered.map((board) => (
-                <BoardCard key={board.id} board={board} />
+                <BoardCard key={board.id} board={board} trashed={isTrash} />
               ))}
             </div>
           )}
         </section>
 
+        {!isTrash ? (
         <section className="templates-section">
           <div className="section-head">
             <div>
@@ -581,6 +835,7 @@ export function Dashboard() {
             ))}
           </div>
         </section>
+        ) : null}
 
         <footer className="dash-footer">
           <span>

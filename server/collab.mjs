@@ -139,6 +139,18 @@ export async function startCollabServer({
 } = {}) {
   const rooms = new Map();
   const emptyTimers = new Map();
+  const filesDir = dataDir ? path.resolve(dataDir, '..', 'files') : null;
+
+  const readBody = async (request) => {
+    const chunks = [];
+    let size = 0;
+    for await (const chunk of request) {
+      size += chunk.length;
+      if (size > 16 * 1024 * 1024) throw new Error('chunk_too_large');
+      chunks.push(chunk);
+    }
+    return Buffer.concat(chunks);
+  };
 
   const server = http.createServer(async (request, response) => {
     const requestUrl = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
@@ -146,8 +158,9 @@ export async function startCollabServer({
     const lan = lanAddresses(port);
     const cors = {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Methods': 'GET, HEAD, PUT, OPTIONS',
+      'Access-Control-Allow-Headers':
+        'Content-Type, x-chunk-index, x-chunk-total, x-file-mime',
       'Cache-Control': 'no-store',
     };
     if (request.method === 'OPTIONS') {
@@ -203,6 +216,88 @@ export async function startCollabServer({
         'Content-Type': 'application/json; charset=utf-8',
       });
       response.end(JSON.stringify(board ?? { error: 'not_found' }));
+      return;
+    }
+
+    /* Archivos binarios troceados: OPFS del cliente ↔ data/files del servidor. */
+    const fileMatch = pathname.match(/^\/api\/files\/([A-Za-z0-9_-]+)$/);
+    if (fileMatch) {
+      if (!filesDir) {
+        response.writeHead(503, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ error: 'files_unavailable' }));
+        return;
+      }
+      const fileId = fileMatch[1];
+      const target = path.join(filesDir, `${fileId}.bin`);
+      const mimeFile = path.join(filesDir, `${fileId}.mime`);
+      if (request.method === 'GET' || request.method === 'HEAD') {
+        try {
+          const stat = await fs.stat(target);
+          let mime = 'application/octet-stream';
+          try {
+            mime = (await fs.readFile(mimeFile, 'utf8')).trim() || mime;
+          } catch {
+            // No mime sidecar.
+          }
+          response.writeHead(200, {
+            ...cors,
+            'Content-Type': mime,
+            'Content-Length': stat.size,
+            'Content-Disposition': `inline; filename="${fileId}"`,
+          });
+          if (request.method === 'HEAD') {
+            response.end();
+            return;
+          }
+          const { createReadStream } = await import('node:fs');
+          createReadStream(target).pipe(response);
+        } catch {
+          response.writeHead(404, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+          response.end(JSON.stringify({ error: 'not_found' }));
+        }
+        return;
+      }
+      if (request.method === 'PUT') {
+        try {
+          await fs.mkdir(filesDir, { recursive: true });
+          const index = Math.max(0, Number(request.headers['x-chunk-index'] ?? 0));
+          const total = Math.max(1, Number(request.headers['x-chunk-total'] ?? 1));
+          const body = await readBody(request);
+          const part = path.join(filesDir, `${fileId}.${index}.part`);
+          await fs.writeFile(part, body);
+          const mime = String(request.headers['x-file-mime'] ?? '').trim();
+          if (mime) await fs.writeFile(mimeFile, mime, 'utf8');
+          let complete = true;
+          for (let cursor = 0; cursor < total; cursor += 1) {
+            try {
+              await fs.access(path.join(filesDir, `${fileId}.${cursor}.part`));
+            } catch {
+              complete = false;
+              break;
+            }
+          }
+          if (complete) {
+            const buffers = [];
+            for (let cursor = 0; cursor < total; cursor += 1) {
+              buffers.push(
+                await fs.readFile(path.join(filesDir, `${fileId}.${cursor}.part`)),
+              );
+            }
+            await fs.writeFile(target, Buffer.concat(buffers));
+            for (let cursor = 0; cursor < total; cursor += 1) {
+              await fs.rm(path.join(filesDir, `${fileId}.${cursor}.part`), { force: true });
+            }
+          }
+          response.writeHead(200, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+          response.end(JSON.stringify({ ok: true, index, total, complete }));
+        } catch (error) {
+          response.writeHead(500, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+          response.end(JSON.stringify({ error: error.message ?? 'upload_failed' }));
+        }
+        return;
+      }
+      response.writeHead(405, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+      response.end(JSON.stringify({ error: 'method_not_allowed' }));
       return;
     }
 

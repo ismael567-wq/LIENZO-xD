@@ -11,6 +11,8 @@ const TYPE_LABEL: Record<BoardItem['type'], string> = {
   draw: 'Trazo',
   image: 'Imagen',
   frame: 'Marco',
+  file: 'Archivo',
+  timer: 'Temporizador',
   connector: 'Conector',
 };
 
@@ -22,6 +24,10 @@ function searchableText(item: BoardItem): string {
       return item.text;
     case 'frame':
       return item.title;
+    case 'file':
+      return `${item.name} ${item.text ?? ''}`;
+    case 'timer':
+      return item.label;
     case 'connector':
       return item.label;
     case 'image':

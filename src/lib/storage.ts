@@ -2,6 +2,7 @@ import { get, set } from 'idb-keyval';
 import type { Board } from '../types';
 
 const BOARDS_KEY = 'lienzo:boards:v1';
+const FOLDERS_KEY = 'lienzo:folders:v1';
 const NAME_KEY = 'lienzo:user-name';
 const SERVER_KEY = 'lienzo:server-url';
 
@@ -28,6 +29,28 @@ export async function loadBoards(): Promise<Board[] | null> {
     return Array.isArray(parsed) && parsed.length > 0 ? parsed : null;
   } catch {
     return null;
+  }
+}
+
+export function loadFolders(): string[] {
+  if (!localStorageAvailable()) return [];
+  try {
+    const raw = localStorage.getItem(FOLDERS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+  } catch {
+    return [];
+  }
+}
+
+export function saveFolders(folders: string[]): void {
+  if (!localStorageAvailable()) return;
+  try {
+    localStorage.setItem(FOLDERS_KEY, JSON.stringify(folders));
+  } catch {
+    // Storage can be full or blocked; folders are optional.
   }
 }
 

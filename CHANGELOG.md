@@ -16,6 +16,14 @@ Rediseño visual v2 y primera tanda de funciones de producto de los informes.
 - **Historial de versiones** local con instantáneas automáticas, guardado manual, restauración y hasta 24 versiones por pizarra.
 - **Temporizador de foco** flotante con presets de 15, 25 y 50 minutos, pausa, reinicio y progreso accesible.
 - **Bloqueo de pizarra** en solo lectura, con aviso desbloqueable y entradas en menú y paleta de comandos.
+- **Arrastrar y pegar cualquier archivo** (PDF, CSV, TXT, ZIP, audio…), no solo imágenes, con almacenamiento OPFS por trozos, respaldo en IndexedDB y subida a la sala LAN. Las tarjetas de archivo se abren o descargan desde el inspector.
+- **Pegar texto** desde el portapapeles crea una nota o un texto en la posición del cursor.
+- **Conectores mejorados**: anclas laterales magnéticas, trazado ortogonal con esquinas redondeadas, etiquetas editables y terminales `arrow`, `dot`, `crowfoot` y `crowfoot-many`.
+- **Temporizador en el lienzo**: objeto temporizador con anillo de progreso, doble clic para iniciar o pausar, campana y finalización automática. Además del temporizador flotante de concentración.
+- **Texturas de marco**: liso, puntos, cuadrícula, líneas, pentagrama y ejes, disponibles en lienzo, inspector y exportación SVG.
+- **Exportación PDF y SVG**, una página por marco, además de copiar al portapapeles desde el menú superior.
+- **Copia de seguridad `.tiza`** del espacio completo (todos los tableros) con importación desde el dashboard.
+- **Carpetas y papelera en el inicio**: crear, renombrar y eliminar carpetas, mover tableros, borrado reversible, restauración, purga individual y vaciado de papelera.
 - Exportación JSON renombrada a archivo `.tiza.json`.
 - Script `npm run contraste` con auditoría de 48 combinaciones WCAG AA.
 - Documento [`docs/TIZA-V2.md`](docs/TIZA-V2.md) con el alcance aplicado y el roadmap pendiente.

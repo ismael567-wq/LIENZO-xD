@@ -25,8 +25,8 @@ Resultado:
 > tsc --noEmit
 (sin errores)
 
- Test Files  5 passed (5)
-      Tests  29 passed (29)
+ Test Files  6 passed (6)
+      Tests  33 passed (33)
 ```
 
 Cobertura funcional:
@@ -40,6 +40,9 @@ Cobertura funcional:
 - referencias válidas de conectores;
 - duplicación con remapeo de IDs de conectores;
 - serialización, exportación e importación de tableros;
+- exportación e importación de espacios `.tiza`;
+- escritor PDF con xref y fin de archivo correctos;
+- exportación SVG que omite elementos ocultos;
 - legibilidad de tintas en tema oscuro.
 
 ## 3. Contraste y accesibilidad
@@ -74,11 +77,11 @@ npm run build
 Resultado:
 
 ```text
-✓ 2121 modules transformed
-dist/assets/index-*.css     87.56 kB │ gzip: 18.61 kB
-dist/assets/index-*.js     451.24 kB │ gzip: 138.93 kB
+✓ 2124 modules transformed
+dist/assets/index-*.css     88.98 kB │ gzip: 18.87 kB
+dist/assets/index-*.js     491.10 kB │ gzip: 150.48 kB
 PWA v2.0.0 · generateSW
-precache 31 entries (945.15 KiB)
+precache 31 entries (985.46 KiB)
 dist/sw.js
 dist/manifest.webmanifest
 ```
@@ -129,6 +132,13 @@ Comprobadas en la app:
 | Temporizador | Apertura desde la paleta, preset de 15 min, pausa y reinicio |
 | Bloqueo | Solo lectura, aviso superior y desbloqueo |
 | Tema | `auto`, día y noche; persistencia en `tiza:theme-mode` |
+| Archivos | Arrastrar CSV, PDF y TXT → tarjetas; descarga OPFS byte a byte idéntica |
+| Conectores | Creación, anclas laterales, etiqueta y terminal `crowfoot-many` |
+| Marcos | Textura pentagrama aplicada y conservada al exportar |
+| Exportación | PDF de 3 páginas con `%PDF-1.4`/EOF, SVG y copia `.tiza` |
+| Espacio `.tiza` | Exportación de 3 tableros e importación con recuento correcto |
+| Carpetas | Crear, mover tablero, filtrar, renombrar y eliminar sin borrar tableros |
+| Papelera | Mover, restaurar y eliminar definitivamente |
 
 ## 7. Prueba end-to-end
 
@@ -216,4 +226,5 @@ Los instaladores no están firmados; SmartScreen puede pedir confirmación. Los 
 - No se ejecutó una prueba física en Android/iOS; se usó emulación de viewport y touch.
 - No se regeneraron los artefactos NSIS/portable de escritorio.
 - No se hizo auditoría completa con lector de pantalla sobre el canvas.
-- Las 86 ideas restantes de los informes no están implementadas ni verificadas; el alcance está en [`TIZA-V2.md`](TIZA-V2.md).
+- La asociación de archivos `.tiza` con el sistema operativo no está registrada; la importación funciona desde el menú y el selector de archivos.
+- Las 77 ideas restantes de los informes (v1.4, v2.0 y v2.0+) no están implementadas ni verificadas; el alcance está en [`TIZA-V2.md`](TIZA-V2.md).

@@ -1,8 +1,10 @@
 import type {
   Anchor,
   BoardItem,
+  ConnectorCap,
   ConnectorItem,
   DrawItem,
+  FileItem,
   FrameItem,
   ImageItem,
   Point,
@@ -11,6 +13,7 @@ import type {
   ShapeKind,
   StickyItem,
   TextItem,
+  TimerItem,
 } from '../types';
 import { STICKY_COLORS } from './theme';
 import { uid } from './geometry';
@@ -177,11 +180,75 @@ export function newConnector(a: Anchor, b: Anchor): ConnectorItem {
     arrowEnd: true,
     label: '',
     lineType: 'straight',
+    startCap: 'none',
+    endCap: 'arrow',
     updatedAt: now(),
     x: 0,
     y: 0,
     w: 0,
     h: 0,
+  };
+}
+
+export interface NewFileOptions {
+  fileId: string;
+  name: string;
+  mime: string;
+  size: number;
+  kind?: FileItem['kind'];
+  preview?: string;
+  text?: string;
+  pages?: number;
+}
+
+export function newFile(point: Point, options: NewFileOptions): FileItem {
+  const w = 300;
+  const h = 190;
+  return {
+    id: uid(9),
+    type: 'file',
+    x: Math.round(point.x - w / 2),
+    y: Math.round(point.y - h / 2),
+    w,
+    h,
+    name: options.name,
+    mime: options.mime,
+    size: options.size,
+    fileId: options.fileId,
+    kind: options.kind ?? 'file',
+    preview: options.preview,
+    text: options.text,
+    page: options.pages ? 1 : undefined,
+    pages: options.pages,
+    updatedAt: now(),
+  };
+}
+
+export function newTimerItem(point: Point, minutes = 5): TimerItem {
+  return {
+    id: uid(9),
+    type: 'timer',
+    x: Math.round(point.x - 120),
+    y: Math.round(point.y - 80),
+    w: 240,
+    h: 160,
+    label: 'Tiempo',
+    duration: Math.max(1, Math.round(minutes)) * 60,
+    endsAt: null,
+    remaining: Math.max(1, Math.round(minutes)) * 60,
+    running: false,
+    sound: true,
+    updatedAt: now(),
+  };
+}
+
+export function capFromFlags(
+  start: boolean,
+  end: boolean,
+): { startCap: ConnectorCap; endCap: ConnectorCap } {
+  return {
+    startCap: start ? 'arrow' : 'none',
+    endCap: end ? 'arrow' : 'none',
   };
 }
 

@@ -23,11 +23,18 @@ import { useMediaQuery } from '../hooks/useMediaQuery';
 import {
   boundsOfItems,
   screenToWorld,
+  uid,
   worldToScreen,
   zoomAtPoint,
 } from '../lib/geometry';
-import { newImage } from '../lib/factory';
+import { newFile, newImage, newText, newTimerItem } from '../lib/factory';
 import { fileToImage } from '../lib/export';
+import {
+  guessFileKind,
+  readStoredFileAsText,
+  saveStoredFile,
+  uploadFileToServer,
+} from '../lib/files';
 
 function PresentationOverlay({ board }: { board: Board }) {
   const presentation = useLienzo((state) => state.presentation);
@@ -277,6 +284,85 @@ export function BoardView() {
     fileInputRef.current?.click();
   };
 
+  const addTimer = () => {
+    const state = useLienzo.getState();
+    const world = screenToWorld(
+      { x: state.stageSize.w / 2, y: state.stageSize.h / 2 },
+      state.viewport,
+    );
+    state.addItem(newTimerItem(world, 5));
+    state.setTool('select');
+    state.showToast('Temporizador de 5 minutos añadido. Doble clic para iniciar.', 'info');
+  };
+
+  const addDroppedFiles = useCallback(
+    async (files: File[], worldPoint?: Point) => {
+      if (files.length === 0) return;
+      const imageFiles = files.filter((file) => file.type.startsWith('image/'));
+      const otherFiles = files.filter((file) => !file.type.startsWith('image/'));
+      if (imageFiles.length > 0) await addImageFiles(imageFiles, worldPoint);
+      if (otherFiles.length === 0) return;
+      const state = useLienzo.getState();
+      const current = currentBoardOf(state);
+      if (!current) return;
+      const center =
+        worldPoint ??
+        screenToWorld(
+          { x: state.stageSize.w / 2, y: state.stageSize.h / 2 },
+          state.viewport,
+        );
+      const base = state.collab.localServerUrl ?? state.collab.url;
+      for (let index = 0; index < otherFiles.length; index += 1) {
+        const file = otherFiles[index];
+        const fileId = uid(14);
+        try {
+          await saveStoredFile(fileId, file);
+          const kind = guessFileKind(file.type, file.name);
+          let text: string | undefined;
+          if (kind === 'csv' || file.type.startsWith('text/')) {
+            try {
+              text = (await file.text()).slice(0, 200_000);
+            } catch {
+              // Text extraction is best-effort.
+            }
+          }
+          const item = newFile(
+            {
+              x: center.x + (index % 3) * 330,
+              y: center.y + Math.floor(index / 3) * 220 + index * 8,
+            },
+            {
+              fileId,
+              name: file.name,
+              mime: file.type || 'application/octet-stream',
+              size: file.size,
+              kind,
+              text,
+            },
+          );
+          state.addItem(item);
+          if (base) {
+            void uploadFileToServer(
+              base,
+              fileId,
+              file,
+              undefined,
+              file.type || 'application/octet-stream',
+            ).catch(() => {
+              // LAN sync is optional; the local copy already exists.
+            });
+          }
+        } catch (error) {
+          state.showToast(
+            error instanceof Error ? error.message : 'No se pudo guardar el archivo.',
+            'error',
+          );
+        }
+      }
+    },
+    [addImageFiles],
+  );
+
   const onDragOver = (event: React.DragEvent<HTMLElement>) => {
     if (!event.dataTransfer.types.includes('Files')) return;
     event.preventDefault();
@@ -292,16 +378,14 @@ export function BoardView() {
   const onDrop = (event: React.DragEvent<HTMLElement>) => {
     event.preventDefault();
     setDropActive(false);
-    const files = Array.from(event.dataTransfer.files).filter((file) =>
-      file.type.startsWith('image/'),
-    );
+    const files = Array.from(event.dataTransfer.files);
     if (files.length === 0) return;
     const rect = mainRef.current?.getBoundingClientRect();
     const screen = rect
       ? { x: event.clientX - rect.left, y: event.clientY - rect.top }
       : { x: 0, y: 0 };
     const world = screenToWorld(screen, useLienzo.getState().viewport);
-    void addImageFiles(files, world);
+    void addDroppedFiles(files, world);
   };
 
   const zoomBy = (factor: number) => {
@@ -344,13 +428,24 @@ export function BoardView() {
           }
         }
       }
-      if (files.length === 0) return;
+      if (files.length === 0) {
+        const text = event.clipboardData?.getData('text/plain')?.trim();
+        if (!text) return;
+        event.preventDefault();
+        const state = useLienzo.getState();
+        const world = screenToWorld(
+          { x: state.stageSize.w / 2, y: state.stageSize.h / 2 },
+          state.viewport,
+        );
+        state.addItem(newText(world, text));
+        return;
+      }
       event.preventDefault();
-      await addImageFiles(files);
+      await addDroppedFiles(files);
     };
     document.addEventListener('paste', onPaste);
     return () => document.removeEventListener('paste', onPaste);
-  }, [board, addImageFiles]);
+  }, [board, addDroppedFiles]);
 
   useEffect(() => {
     if (!board) return;
@@ -658,6 +753,7 @@ export function BoardView() {
               onShapeKind={(kind) => useLienzo.getState().setShapeKind(kind)}
               onImage={() => openImagePicker()}
               onTemplates={() => useLienzo.getState().setUi('templates', true)}
+              onTimer={addTimer}
             />
 
             <ZoomBar
@@ -674,6 +770,7 @@ export function BoardView() {
               onShapeKind={(kind) => useLienzo.getState().setShapeKind(kind)}
               onImage={() => openImagePicker()}
               onTemplates={() => useLienzo.getState().setUi('templates', true)}
+              onTimer={addTimer}
             />
 
             {showInspector ? (
@@ -734,8 +831,8 @@ export function BoardView() {
         {dropActive ? (
           <div className="drop-overlay" aria-hidden="true">
             <ImagePlus size={30} />
-            <strong>Suelta para insertar la imagen</strong>
-            <span>Se añadirá donde estás mirando</span>
+            <strong>Suelta para insertar archivos</strong>
+            <span>Imágenes, PDF, vídeo, audio, CSV… se guardan en tu dispositivo</span>
           </div>
         ) : null}
 
@@ -765,13 +862,12 @@ export function BoardView() {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
         multiple
         className="visually-hidden"
         onChange={(event) => {
           const files = Array.from(event.target.files ?? []);
           event.target.value = '';
-          if (files.length > 0) void addImageFiles(files);
+          if (files.length > 0) void addDroppedFiles(files);
         }}
       />
     </div>

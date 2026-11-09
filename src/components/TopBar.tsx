@@ -6,7 +6,9 @@ import {
   CircleDot,
   Copy,
   Download,
+  FileCode2,
   FileJson,
+  FileText,
   Grid3X3,
   History,
   Image as ImageIcon,
@@ -30,13 +32,23 @@ import {
   TimerReset,
   Trash2,
   Unlock,
+  Upload,
   Users,
   Wifi,
   WifiOff,
 } from 'lucide-react';
 import type { Board } from '../types';
 import { useLienzo } from '../store/boardStore';
-import { copyBoardPNG, exportBoardJSON, exportBoardPNG, safeFileName } from '../lib/export';
+import {
+  copyBoardPNG,
+  exportBoardJSON,
+  exportBoardPDF,
+  exportBoardPNG,
+  exportBoardSVG,
+  exportWorkspace,
+  parseWorkspaceFile,
+  safeFileName,
+} from '../lib/export';
 import { copyToClipboard } from '../lib/net';
 import { hasPendingUpdate, useUpdates } from '../store/updateStore';
 import { initials, Logo } from './Logo';
@@ -109,6 +121,7 @@ export function TopBar({ board }: TopBarProps) {
   const exportRef = useRef<HTMLDivElement>(null);
   const moreRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
+  const workspaceInputRef = useRef<HTMLInputElement>(null);
 
   const saveStatus = useLienzo((state) => state.saveStatus);
   const closeBoard = useLienzo((state) => state.closeBoard);
@@ -145,7 +158,9 @@ export function TopBar({ board }: TopBarProps) {
     else setName(board.name);
   };
 
-  const handleExport = async (kind: 'png' | 'json' | 'selection' | 'copy') => {
+  const handleExport = async (
+    kind: 'png' | 'json' | 'selection' | 'copy' | 'pdf' | 'svg' | 'workspace',
+  ) => {
     setExportOpen(false);
     try {
       if (kind === 'json') {
@@ -165,6 +180,15 @@ export function TopBar({ board }: TopBarProps) {
       } else if (kind === 'selection') {
         await exportBoardPNG(board, { selected, theme });
         showToast('PNG de la selección generado.', 'success');
+      } else if (kind === 'svg') {
+        exportBoardSVG(board, { selected, theme });
+        showToast('SVG vectorial generado.', 'success');
+      } else if (kind === 'pdf') {
+        await exportBoardPDF(board, { theme });
+        showToast('PDF con una página por marco generado.', 'success');
+      } else if (kind === 'workspace') {
+        exportWorkspace(useLienzo.getState().boards);
+        showToast('Backup completo del workspace generado.', 'success');
       } else {
         await exportBoardPNG(board, { theme });
         showToast('PNG generado con todo el tablero.', 'success');
@@ -321,6 +345,35 @@ export function TopBar({ board }: TopBarProps) {
                 <FileJson size={16} />
                 <span>Archivo tiza</span>
                 <small>Editable</small>
+              </button>
+              <button type="button" role="menuitem" onClick={() => handleExport('pdf')}>
+                <FileText size={16} />
+                <span>PDF por marcos</span>
+                <small>Una página por marco</small>
+              </button>
+              <button type="button" role="menuitem" onClick={() => handleExport('svg')}>
+                <FileCode2 size={16} />
+                <span>SVG vectorial</span>
+                <small>Escalable</small>
+              </button>
+              <div className="menu-separator" />
+              <div className="menu-label">Workspace</div>
+              <button type="button" role="menuitem" onClick={() => handleExport('workspace')}>
+                <Download size={16} />
+                <span>Backup total</span>
+                <small>Archivo .tiza</small>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setExportOpen(false);
+                  workspaceInputRef.current?.click();
+                }}
+              >
+                <Upload size={16} />
+                <span>Importar workspace</span>
+                <small>Abre un .tiza</small>
               </button>
               <div className="menu-separator" />
               <button
@@ -558,6 +611,26 @@ export function TopBar({ board }: TopBarProps) {
         </div>
       </div>
 
+      <input
+        ref={workspaceInputRef}
+        type="file"
+        accept=".tiza,.json,application/json"
+        className="visually-hidden"
+        onChange={async (event) => {
+          const file = event.target.files?.[0];
+          event.target.value = '';
+          if (!file) return;
+          try {
+            const boards = parseWorkspaceFile(await file.text());
+            useLienzo.getState().importWorkspace(boards);
+          } catch (error) {
+            showToast(
+              error instanceof Error ? error.message : 'No se pudo importar el workspace.',
+              'error',
+            );
+          }
+        }}
+      />
     </header>
   );
 }

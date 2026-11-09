@@ -10,8 +10,13 @@
 - **Rediseño v2**: tema noche como principal, tema día, selector automático, Space Grotesk + Inter + JetBrains Mono y acabado nuevo en dashboard, tablero, menús, modales y móvil.
 - **Búsqueda en la pizarra** con `Ctrl/Cmd+F`.
 - **Historial de versiones** con instantáneas automáticas, guardado manual y restauración.
-- **Temporizador de foco** de 15, 25 o 50 minutos.
+- **Temporizador de foco** de 15, 25 o 50 minutos y temporizador de objeto en el lienzo.
 - **Bloqueo de pizarra** en solo lectura.
+- **Arrastrar o pegar cualquier archivo** con almacenamiento OPFS y tarjetas en el lienzo.
+- **Conectores con anclas laterales, trazado ortogonal, etiquetas y terminales**.
+- **Texturas de marco**: puntos, cuadrícula, líneas, pentagrama y ejes.
+- **Exportación PDF y SVG**, copia al portapapeles y respaldo `.tiza` del espacio.
+- **Carpetas y papelera** en el inicio.
 - Exportación JSON con extensión `.tiza.json`.
 - Barra superior móvil simplificada, cámara ajustada al ancho real y objetivos táctiles de 44 px.
 
@@ -24,14 +29,14 @@
 ## Verificación
 
 - `npm run typecheck` sin errores.
-- 29 pruebas unitarias aprobadas.
+- 33 pruebas unitarias aprobadas.
 - `npm run build` correcto.
 - `npm run contraste` → 48/48 AA.
 - QA visual en navegador real a 1440×900 y 390×844.
 
 ## Pendiente
 
-El rediseño está aplicado, pero no las 90 ideas de los informes. Se han implementado 4 de las 13 ideas de v1.3; quedan v1.4 (42), v2.0 (31) y v2.0+ (4). Entre lo pendiente: exportación PDF/SVG, anclas laterales de conectores, cualquier archivo, notas de voz/vídeo y flashcards.
+El rediseño está aplicado y la familia v1.3 está completa (13/13). Quedan pendientes v1.4 (42), v2.0 (31) y v2.0+ (4). Entre lo pendiente: notas de voz/vídeo, flashcards y colaboración CRDT. La asociación de archivos `.tiza` con el sistema operativo no está registrada; la importación funciona desde el menú.
 
 Detalle completo en [`docs/TIZA-V2.md`](TIZA-V2.md).
 

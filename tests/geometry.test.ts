@@ -130,8 +130,20 @@ describe('geometry', () => {
     const c = connector('a', 'b');
     const straight = connectorPathPoints(c, [a, b]);
     expect(straight).toHaveLength(2);
+    // Sin lados explícitos el codo resuelve con un único quiebre.
     const elbow = connectorPathPoints({ ...c, lineType: 'elbow' }, [a, b]);
-    expect(elbow).toHaveLength(4);
+    expect(elbow).toHaveLength(3);
+    // Con anclajes laterales añade stubs y tramo central (6 vértices).
+    const sided: ConnectorItem = {
+      ...c,
+      lineType: 'elbow',
+      from: { ...c.from, side: 'right', offset: 0.5 },
+      to: { ...c.to, side: 'left', offset: 0.5 },
+    };
+    const sidedElbow = connectorPathPoints(sided, [a, b]);
+    expect(sidedElbow).toHaveLength(6);
+    expect(sidedElbow[0]).toEqual({ x: 100, y: 40 });
+    expect(sidedElbow[sidedElbow.length - 1]).toEqual({ x: 400, y: 340 });
     const curve = connectorPathPoints({ ...c, lineType: 'curve' }, [a, b]);
     expect(curve).toHaveLength(25);
     expect(connectorLabelPoint({ ...c, lineType: 'curve' }, [a, b]).x).toBeGreaterThan(0);

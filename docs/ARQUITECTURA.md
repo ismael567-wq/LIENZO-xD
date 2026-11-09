@@ -322,7 +322,7 @@ El servidor sirve el build y la sala WebSocket. Es la forma más sencilla de com
 
 ## 10. Pruebas y verificación
 
-- **Vitest**: 29 pruebas de geometría, conectores (recta, codo y curva), plantillas, duplicación, parseo de archivos y legibilidad de tintas en tema oscuro.
+- **Vitest**: 33 pruebas de geometría, conectores (recta, codo y curva), plantillas, duplicación, parseo de tableros y espacios, PDF/SVG y legibilidad de tintas en tema oscuro.
 - **Contraste**: script `npm run contraste` con 48 pares WCAG AA en día y noche.
 - **Playwright E2E**: creación/edición, undo/redo, formas, comentarios, presentación, QR, exportación PNG, PWA, deep link móvil y sincronización en tiempo real.
 - **Electron**: arranque del `.exe` empaquetado, servidor en 8788, carga de la UI y preload.

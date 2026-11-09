@@ -176,7 +176,7 @@ npm run contraste
 ```
 
 - TypeScript sin errores.
-- 29 pruebas unitarias aprobadas.
+- 33 pruebas unitarias aprobadas.
 - Build de Vite + PWA correcto.
 - Auditoría de contraste: 48/48 combinaciones WCAG AA.
 - QA visual en navegador real a 1440×900 y 390×844, sin errores de consola.
@@ -198,7 +198,7 @@ Resultados y comandos en [`docs/VERIFICACION.md`](docs/VERIFICACION.md).
 
 Este es un **MVP alpha funcional**, no un clon completo de Miro. Funciona y está probado en web, escritorio y móvil (PWA), pero no incluye nube, cuentas, permisos enterprise, las 250+ integraciones ni IA generativa. La colaboración es LWW por objeto y está pensada para equipos pequeños en la misma red.
 
-El rediseño visual v2 está aplicado. De las 90 ideas de los informes de producto se han implementado la identidad y una primera tanda de funciones v1.3: búsqueda, historial, temporizador y bloqueo. El resto del roadmap —exportación PDF/SVG, anclas laterales de conectores, arrastrar cualquier archivo, notas de voz o vídeo, flashcards y las familias v1.4/v2.0— sigue pendiente y está inventariado en [`docs/TIZA-V2.md`](docs/TIZA-V2.md#8-lo-que-queda-pendiente).
+El rediseño visual v2 está aplicado y la familia v1.3 está completa (13/13): búsqueda, historial, temporizador, bloqueo, archivos y portapapeles, conectores con anclas y terminales, texturas de marco, exportación PDF/SVG, respaldo `.tiza`, carpetas y papelera. Queda pendiente el resto del roadmap —notas de voz o vídeo, flashcards y las familias v1.4/v2.0/v2.0+— inventariado en [`docs/TIZA-V2.md`](docs/TIZA-V2.md#8-lo-que-queda-pendiente).
 
 Lista completa de límites en [`docs/ARQUITECTURA.md#11-límites-conocidos`](docs/ARQUITECTURA.md#11-límites-conocidos).
 

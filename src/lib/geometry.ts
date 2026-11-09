@@ -1,6 +1,7 @@
 import { nanoid } from 'nanoid';
 import type {
   Anchor,
+  AnchorSide,
   BoardItem,
   ConnectorItem,
   ItemType,
@@ -112,6 +113,60 @@ export function edgePoint(item: BoardItem, toward: Point): Point {
   return { x: center.x + dx * scale, y: center.y + dy * scale };
 }
 
+/** Punto de anclaje magnético en un lado concreto del objeto. */
+export function sideAnchorPoint(
+  item: BoardItem,
+  side: AnchorSide,
+  offset = 0.5,
+): Point {
+  const rect = itemRect(item);
+  const t = clamp(offset, 0, 1);
+  if (side === 'top') return { x: rect.x + rect.w * t, y: rect.y };
+  if (side === 'bottom') return { x: rect.x + rect.w * t, y: rect.y + rect.h };
+  if (side === 'left') return { x: rect.x, y: rect.y + rect.h * t };
+  return { x: rect.x + rect.w, y: rect.y + rect.h * t };
+}
+
+/** Lado más cercano del objeto a un punto, y su offset a lo largo del lado. */
+export function anchorSideAt(item: BoardItem, point: Point): {
+  side: AnchorSide;
+  offset: number;
+} {
+  const rect = itemRect(item);
+  const center = itemCenter(item);
+  const dx = (point.x - center.x) / Math.max(rect.w / 2, 1);
+  const dy = (point.y - center.y) / Math.max(rect.h / 2, 1);
+  if (Math.abs(dx) > Math.abs(dy)) {
+    return {
+      side: dx >= 0 ? 'right' : 'left',
+      offset: clamp((point.y - rect.y) / Math.max(rect.h, 1), 0, 1),
+    };
+  }
+  return {
+    side: dy >= 0 ? 'bottom' : 'top',
+    offset: clamp((point.x - rect.x) / Math.max(rect.w, 1), 0, 1),
+  };
+}
+
+/** Cuatro puntos magnéticos visibles de un objeto. */
+export function anchorPointsOf(item: BoardItem): Array<{ side: AnchorSide; point: Point }> {
+  return (['top', 'right', 'bottom', 'left'] as AnchorSide[]).map((side) => ({
+    side,
+    point: sideAnchorPoint(item, side, 0.5),
+  }));
+}
+
+function anchorEndpoint(
+  anchor: Anchor,
+  item: BoardItem | undefined,
+  toward: Point,
+): Point {
+  if (!item) return { x: anchor.x, y: anchor.y };
+  if (anchor.side) return sideAnchorPoint(item, anchor.side, anchor.offset);
+  return edgePoint(item, toward);
+}
+
+
 export function getAnchorPoint(anchor: Anchor, items: BoardItem[]): Point {
   if (anchor.itemId) {
     const item = items.find((candidate) => candidate.id === anchor.itemId);
@@ -140,10 +195,14 @@ export function getConnectorEndpoints(
       ? itemCenter(toItem)
       : { x: conn.to.x, y: conn.to.y };
 
-  let a = rawA;
-  let b = rawB;
-  if (fromItem && !isConnector(fromItem)) a = edgePoint(fromItem, rawB);
-  if (toItem && !isConnector(toItem)) b = edgePoint(toItem, rawA);
+  const a =
+    fromItem && !isConnector(fromItem)
+      ? anchorEndpoint(conn.from, fromItem, rawB)
+      : rawA;
+  const b =
+    toItem && !isConnector(toItem)
+      ? anchorEndpoint(conn.to, toItem, rawA)
+      : rawB;
   return { a, b };
 }
 
@@ -155,10 +214,39 @@ export function connectorPathPoints(
   const { a, b } = getConnectorEndpoints(conn, items);
   const lineType = conn.lineType ?? 'straight';
   if (lineType === 'elbow') {
-    if (Math.abs(a.y - b.y) < 2) return [a, b];
-    if (Math.abs(a.x - b.x) < 2) return [a, b];
-    const midX = (a.x + b.x) / 2;
-    return [a, { x: midX, y: a.y }, { x: midX, y: b.y }, b];
+    const stub = 26;
+    const dirOf = (side?: AnchorSide): Point => {
+      if (side === 'top') return { x: 0, y: -1 };
+      if (side === 'bottom') return { x: 0, y: 1 };
+      if (side === 'left') return { x: -1, y: 0 };
+      if (side === 'right') return { x: 1, y: 0 };
+      return { x: 0, y: 0 };
+    };
+    const da = dirOf(conn.from.side);
+    const db = dirOf(conn.to.side);
+    const aOut = { x: a.x + da.x * stub, y: a.y + da.y * stub };
+    const bOut = { x: b.x + db.x * stub, y: b.y + db.y * stub };
+    const points: Point[] = [a];
+    if (da.x || da.y) points.push(aOut);
+    if (da.x !== 0 && db.x !== 0) {
+      const midX = (aOut.x + bOut.x) / 2;
+      points.push({ x: midX, y: aOut.y }, { x: midX, y: bOut.y });
+    } else if (da.y !== 0 && db.y !== 0) {
+      const midY = (aOut.y + bOut.y) / 2;
+      points.push({ x: aOut.x, y: midY }, { x: bOut.x, y: midY });
+    } else if (da.x !== 0) {
+      points.push({ x: bOut.x, y: aOut.y });
+    } else {
+      points.push({ x: aOut.x, y: bOut.y });
+    }
+    if (db.x || db.y) points.push(bOut);
+    points.push(b);
+    return points.filter(
+      (point, index) =>
+        index === 0 ||
+        Math.abs(point.x - points[index - 1].x) > 0.5 ||
+        Math.abs(point.y - points[index - 1].y) > 0.5,
+    );
   }
   if (lineType === 'curve') {
     const dx = b.x - a.x;
@@ -254,7 +342,7 @@ export function hitTest(
   const tolerance = 8 / zoom;
   for (let index = items.length - 1; index >= 0; index -= 1) {
     const item = items[index];
-    if (item.locked) continue;
+    if (item.locked || item.hidden) continue;
     if (isConnector(item)) {
       if (
         distanceToConnector(item, items, point) <=
@@ -270,7 +358,7 @@ export function hitTest(
   if (includeFrames) {
     for (let index = items.length - 1; index >= 0; index -= 1) {
       const item = items[index];
-      if (item.locked || item.type !== 'frame') continue;
+      if (item.locked || item.hidden || item.type !== 'frame') continue;
       const titleRect = {
         x: item.x,
         y: item.y - 40,
@@ -387,6 +475,7 @@ export function boundsOfItems(
   let maxX = Number.NEGATIVE_INFINITY;
   let maxY = Number.NEGATIVE_INFINITY;
   for (const item of selected) {
+    if (item.hidden) continue;
     const rect = isConnector(item) ? connectorBounds(item, items) : itemRect(item);
     minX = Math.min(minX, rect.x);
     minY = Math.min(minY, rect.y);
@@ -469,6 +558,10 @@ export function itemTypeLabel(type: ItemType): string {
       return 'Trazo';
     case 'image':
       return 'Imagen';
+    case 'file':
+      return 'Archivo';
+    case 'timer':
+      return 'Temporizador';
     case 'frame':
       return 'Marco';
     case 'connector':

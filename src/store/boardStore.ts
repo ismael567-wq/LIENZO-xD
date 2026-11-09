@@ -41,9 +41,11 @@ import { createBoard, createWelcomeBoard, DEFAULT_BOARD_NAME } from '../lib/temp
 import { duplicateItems, newSticky } from '../lib/factory';
 import {
   loadBoards,
+  loadFolders,
   loadServerUrl,
   loadUserName,
   saveBoards,
+  saveFolders,
   saveServerUrl,
   saveUserName,
 } from '../lib/storage';
@@ -95,6 +97,7 @@ export interface PresentationState {
 interface LienzoState {
   ready: boolean;
   boards: Board[];
+  folders: string[];
   boardId: string | null;
   tool: Tool;
   shapeKind: ShapeKind;
@@ -123,9 +126,17 @@ interface LienzoState {
   closeBoard: () => void;
   renameBoard: (id: string, name: string) => void;
   deleteBoard: (id: string) => void;
+  restoreBoard: (id: string) => void;
+  purgeBoard: (id: string) => void;
+  emptyTrash: () => void;
   duplicateBoard: (id: string) => void;
   toggleFavorite: (id: string) => void;
+  moveBoardToFolder: (id: string, folder: string | null) => void;
+  createFolder: (name: string) => string | null;
+  renameFolder: (from: string, to: string) => void;
+  deleteFolder: (name: string) => void;
   importBoard: (board: Board) => void;
+  importWorkspace: (boards: Board[]) => void;
 
   setTool: (tool: Tool) => void;
   setShapeKind: (kind: ShapeKind) => void;
@@ -261,6 +272,7 @@ function cloneBoardDeep(board: Board): Board {
   clone.createdAt = Date.now();
   clone.updatedAt = Date.now();
   clone.favorite = false;
+  clone.deletedAt = undefined;
   return clone;
 }
 
@@ -338,6 +350,7 @@ export const useLienzo = create<LienzoState>()((set, get) => {
   return {
     ready: false,
     boards: [],
+    folders: [],
     boardId: null,
     tool: 'select',
     shapeKind: 'rect',
@@ -380,6 +393,15 @@ export const useLienzo = create<LienzoState>()((set, get) => {
       if (get().ready) return;
       const stored = await loadBoards();
       let boards = stored ?? seedBoards();
+      const savedFolders = loadFolders();
+      const folders = Array.from(
+        new Set([
+          ...savedFolders,
+          ...boards
+            .map((board) => board.folder?.trim())
+            .filter((value): value is string => Boolean(value)),
+        ]),
+      );
       const userName = loadUserName();
       const collab = get().collab;
       const match =
@@ -387,7 +409,7 @@ export const useLienzo = create<LienzoState>()((set, get) => {
           ? window.location.hash.match(/^#\/b\/([A-Za-z0-9_-]+)$/)
           : null;
       let deepLinked = match
-        ? boards.find((board) => board.id === match[1])
+        ? boards.find((board) => board.id === match[1] && !board.deletedAt)
         : undefined;
       let sharedFromRoom = false;
       if (match && !deepLinked) {
@@ -423,8 +445,10 @@ export const useLienzo = create<LienzoState>()((set, get) => {
         }
       }
       if (!stored || sharedFromRoom) await saveBoards(boards);
+      saveFolders(folders);
       set({
         boards,
+        folders,
         ready: true,
         userName,
         boardId: deepLinked?.id ?? null,
@@ -470,7 +494,7 @@ export const useLienzo = create<LienzoState>()((set, get) => {
 
     openBoard: (id) => {
       const board = get().boards.find((candidate) => candidate.id === id);
-      if (!board) return;
+      if (!board || board.deletedAt) return;
       if (get().collab.status !== 'off') get().disconnectCollab();
       set({
         boardId: id,
@@ -526,21 +550,18 @@ export const useLienzo = create<LienzoState>()((set, get) => {
 
     deleteBoard: (id) => {
       const state = get();
-      const remaining = state.boards.filter((board) => board.id !== id);
-      if (remaining.length === 0) {
-        const fresh = createWelcomeBoard();
-        set({
-          boards: [fresh],
-          boardId: state.boardId === id ? null : state.boardId,
-          selected: [],
-          saveStatus: 'dirty',
-        });
-        if (state.boardId === id) syncHash(null);
-        get().showToast('Creamos un tablero nuevo para que no te quedes sin espacio.', 'info');
-        return;
-      }
+      const target = state.boards.find((board) => board.id === id);
+      if (!target) return;
+      const nextBoards = state.boards.map((board) =>
+        board.id === id
+          ? { ...board, deletedAt: Date.now(), updatedAt: Date.now() }
+          : board,
+      );
+      const activeCount = nextBoards.filter((board) => !board.deletedAt).length;
+      const boards =
+        activeCount === 0 ? [createWelcomeBoard(), ...nextBoards] : nextBoards;
       set({
-        boards: remaining,
+        boards,
         boardId: state.boardId === id ? null : state.boardId,
         selected: [],
         saveStatus: 'dirty',
@@ -549,7 +570,124 @@ export const useLienzo = create<LienzoState>()((set, get) => {
         get().disconnectCollab();
         syncHash(null);
       }
-      get().showToast('Tablero eliminado.', 'info');
+      get().showToast('Movido a la papelera. Puedes restaurarlo cuando quieras.', 'info');
+    },
+
+    restoreBoard: (id) => {
+      set((state) => ({
+        boards: state.boards.map((board) =>
+          board.id === id
+            ? { ...board, deletedAt: undefined, updatedAt: Date.now() }
+            : board,
+        ),
+        saveStatus: 'dirty',
+      }));
+      get().showToast('Tablero restaurado.', 'success');
+    },
+
+    purgeBoard: (id) => {
+      const state = get();
+      const remaining = state.boards.filter((board) => board.id !== id);
+      const boards = remaining.length === 0 ? [createWelcomeBoard()] : remaining;
+      set({
+        boards,
+        boardId: state.boardId === id ? null : state.boardId,
+        selected: [],
+        saveStatus: 'dirty',
+      });
+      if (state.boardId === id) {
+        get().disconnectCollab();
+        syncHash(null);
+      }
+      get().showToast('Tablero eliminado definitivamente.', 'info');
+    },
+
+    emptyTrash: () => {
+      const state = get();
+      const trashed = state.boards.filter((board) => board.deletedAt);
+      if (trashed.length === 0) return;
+      const remaining = state.boards.filter((board) => !board.deletedAt);
+      const boards = remaining.length === 0 ? [createWelcomeBoard()] : remaining;
+      set({
+        boards,
+        boardId: state.boardId && trashed.some((board) => board.id === state.boardId)
+          ? null
+          : state.boardId,
+        selected: [],
+        saveStatus: 'dirty',
+      });
+      if (state.boardId && trashed.some((board) => board.id === state.boardId)) {
+        get().disconnectCollab();
+        syncHash(null);
+      }
+      get().showToast(
+        `${trashed.length} tablero${trashed.length === 1 ? '' : 's'} eliminado${
+          trashed.length === 1 ? '' : 's'
+        } definitivamente.`,
+        'info',
+      );
+    },
+
+    moveBoardToFolder: (id, folder) => {
+      const clean = folder?.trim() || null;
+      set((state) => {
+        const folders =
+          clean && !state.folders.includes(clean)
+            ? [...state.folders, clean]
+            : state.folders;
+        return {
+          folders,
+          boards: state.boards.map((board) =>
+            board.id === id
+              ? { ...board, folder: clean ?? undefined, updatedAt: Date.now() }
+              : board,
+          ),
+          saveStatus: 'dirty',
+        };
+      });
+      get().showToast(
+        clean ? `Tablero movido a «${clean}».` : 'Tablero movido fuera de las carpetas.',
+        'success',
+      );
+    },
+
+    createFolder: (name) => {
+      const clean = name.trim();
+      if (!clean) return null;
+      if (get().folders.includes(clean)) {
+        get().showToast('Ya existe una carpeta con ese nombre.', 'error');
+        return clean;
+      }
+      set((state) => ({
+        folders: [...state.folders, clean],
+        saveStatus: 'dirty',
+      }));
+      get().showToast(`Carpeta «${clean}» creada.`, 'success');
+      return clean;
+    },
+
+    renameFolder: (from, to) => {
+      const clean = to.trim();
+      if (!clean || clean === from) return;
+      set((state) => ({
+        folders: state.folders.map((folder) => (folder === from ? clean : folder)),
+        boards: state.boards.map((board) =>
+          board.folder === from ? { ...board, folder: clean } : board,
+        ),
+        saveStatus: 'dirty',
+      }));
+      get().showToast(`Carpeta renombrada a «${clean}».`, 'success');
+    },
+
+    deleteFolder: (name) => {
+      set((state) => ({
+        folders: state.folders.filter((folder) => folder !== name),
+        boards: state.boards.map((board) =>
+          board.folder === name ? { ...board, folder: undefined } : board,
+        ),
+        saveStatus: 'dirty',
+      }));
+      get().showToast(`Carpeta «${name}» eliminada. Los tableros siguen en «Todos».`, 'info');
     },
 
     duplicateBoard: (id) => {
@@ -579,6 +717,8 @@ export const useLienzo = create<LienzoState>()((set, get) => {
       imported.createdAt = Date.now();
       imported.updatedAt = Date.now();
       imported.favorite = false;
+      imported.folder = undefined;
+      imported.deletedAt = undefined;
       set((state) => ({
         boards: [imported, ...state.boards],
         boardId: imported.id,
@@ -590,6 +730,45 @@ export const useLienzo = create<LienzoState>()((set, get) => {
       syncHash(imported.id);
       setTimeout(() => get().fitToContent(90), 40);
       get().showToast('Tablero importado correctamente.', 'success');
+    },
+
+    importWorkspace: (boards) => {
+      if (boards.length === 0) return;
+      const existingIds = new Set(get().boards.map((board) => board.id));
+      const now = Date.now();
+      const imported = boards.map((board, index) => {
+        const clone = structuredClone(board);
+        if (!clone.id || existingIds.has(clone.id)) clone.id = uid(12);
+        existingIds.add(clone.id);
+        clone.createdAt = clone.createdAt || now;
+        clone.updatedAt = now;
+        clone.favorite = false;
+        clone.deletedAt = undefined;
+        if (index === 0) clone.name = clone.name || 'Workspace importado';
+        return clone;
+      });
+      set((state) => ({
+        boards: [...imported, ...state.boards],
+        folders: Array.from(
+          new Set([
+            ...state.folders,
+            ...imported
+              .map((board) => board.folder?.trim())
+              .filter((value): value is string => Boolean(value)),
+          ]),
+        ),
+        boardId: imported[0]?.id ?? state.boardId,
+        selected: [],
+        past: [],
+        future: [],
+        saveStatus: 'dirty',
+      }));
+      if (imported[0]) syncHash(imported[0].id);
+      setTimeout(() => get().fitToContent(90), 40);
+      get().showToast(
+        `Workspace importado: ${imported.length} tablero${imported.length === 1 ? '' : 's'}.`,
+        'success',
+      );
     },
 
     setTool: (tool) => {

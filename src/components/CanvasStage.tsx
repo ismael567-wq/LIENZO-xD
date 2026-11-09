@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   Anchor,
+  AnchorSide,
   Board,
   BoardItem,
   ConnectorItem,
@@ -12,8 +13,10 @@ import type {
   Viewport,
 } from '../types';
 import { useLienzo } from '../store/boardStore';
+import { currentBoardOf } from '../store/boardStore';
 import {
   HANDLE_CURSORS,
+  anchorSideAt,
   clamp,
   getHandleAt,
   hitTest,
@@ -36,6 +39,7 @@ import {
   newText,
 } from '../lib/factory';
 import { STICKY_COLORS } from '../lib/theme';
+import { ensureLocalFile } from '../lib/files';
 
 interface CanvasStageProps {
   board: Board;
@@ -142,6 +146,38 @@ function unionRect(rects: Rect[]): Rect {
   return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
 }
 
+function anchorWithSide(item: BoardItem, world: Point): Anchor {
+  const { side, offset } = anchorSideAt(item, world);
+  return { itemId: item.id, x: world.x, y: world.y, side, offset };
+}
+
+function playTimerBell(): void {
+  try {
+    const Ctx =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return;
+    const audio = new Ctx();
+    const now = audio.currentTime;
+    const gain = audio.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.22, now + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.1);
+    gain.connect(audio.destination);
+    [880, 1320].forEach((frequency, index) => {
+      const oscillator = audio.createOscillator();
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(frequency, now + index * 0.16);
+      oscillator.connect(gain);
+      oscillator.start(now + index * 0.16);
+      oscillator.stop(now + 1.1);
+    });
+    setTimeout(() => void audio.close(), 1600);
+  } catch {
+    // Audio is optional; some browsers block it without a gesture.
+  }
+}
+
 function computeSnap(
   initialBounds: Rect,
   dx: number,
@@ -239,12 +275,22 @@ export function CanvasStage({
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [cursor, setCursor] = useState('default');
   const [spaceDown, setSpaceDown] = useState(false);
+  const [anchorTarget, setAnchorTarget] = useState<{
+    item: BoardItem;
+    side?: AnchorSide;
+  } | null>(null);
   const theme = useLienzo((state) => state.theme);
   const laserRef = useRef<Array<{ x: number; y: number; at: number }>>([]);
   const laserRafRef = useRef(0);
+  const alarmedRef = useRef<Set<string>>(new Set());
 
   const stickyCount = useMemo(
     () => board.items.filter((item) => item.type === 'sticky').length,
+    [board.items],
+  );
+
+  const hasRunningTimers = useMemo(
+    () => board.items.some((item) => item.type === 'timer' && item.running),
     [board.items],
   );
 
@@ -254,6 +300,34 @@ export function CanvasStage({
       rafRef.current = 0;
       drawRef.current();
     });
+  }, []);
+
+  useEffect(() => {
+    if (!hasRunningTimers) return;
+    const interval = setInterval(() => requestDraw(), 250);
+    return () => clearInterval(interval);
+  }, [hasRunningTimers, requestDraw]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const state = useLienzo.getState();
+      const current = currentBoardOf(state);
+      if (!current) return;
+      for (const item of current.items) {
+        if (item.type !== 'timer') continue;
+        if (!item.running || !item.endsAt) {
+          alarmedRef.current.delete(item.id);
+          continue;
+        }
+        if (Date.now() >= item.endsAt && !alarmedRef.current.has(item.id)) {
+          alarmedRef.current.add(item.id);
+          if (item.sound) playTimerBell();
+          state.updateItem(item.id, { running: false, endsAt: null, remaining: 0 });
+          state.showToast(`Temporizador «${item.label}» terminado.`, 'success');
+        }
+      }
+    }, 500);
+    return () => clearInterval(interval);
   }, []);
 
   drawRef.current = () => {
@@ -280,6 +354,7 @@ export function CanvasStage({
       guides,
       comments: false,
       clip,
+      anchorTarget,
       onImageLoad: requestDraw,
     });
     const laser = laserRef.current;
@@ -348,7 +423,7 @@ export function CanvasStage({
 
   useEffect(() => {
     requestDraw();
-  }, [board, viewport, selected, editingId, marquee, draft, hoveredId, guides, size, clip, theme, requestDraw]);
+  }, [board, viewport, selected, editingId, marquee, draft, hoveredId, guides, size, clip, theme, anchorTarget, requestDraw]);
 
   useEffect(
     () => () => {
@@ -523,11 +598,10 @@ export function CanvasStage({
         kind: 'connector',
         pointerId: event.pointerId,
         start: world,
-        from: hit
-          ? { itemId: hit.id, x: world.x, y: world.y }
-          : { x: world.x, y: world.y },
+        from: hit ? anchorWithSide(hit, world) : { x: world.x, y: world.y },
         fromId: hit?.id,
       };
+      if (hit) setAnchorTarget({ item: hit, side: anchorSideAt(hit, world).side });
       return;
     }
     if (state.tool === 'sticky' || state.tool === 'shape' || state.tool === 'frame') {
@@ -702,8 +776,16 @@ export function CanvasStage({
         const hit = hitTest(board.items, world, state.viewport.zoom);
         setHoveredId(hit?.id ?? null);
         setCursor(hit ? 'move' : baseCursor());
+      } else if (!readOnly && state.tool === 'connector') {
+        const hit = hitTest(board.items, world, state.viewport.zoom);
+        setAnchorTarget(
+          hit ? { item: hit, side: anchorSideAt(hit, world).side } : null,
+        );
+        setHoveredId(hit?.id ?? null);
+        setCursor('crosshair');
       } else {
         setHoveredId(null);
+        setAnchorTarget(null);
         setCursor(baseCursor());
       }
       return;
@@ -886,9 +968,8 @@ export function CanvasStage({
 
     if (gesture.kind === 'connector') {
       const hit = hitTest(board.items, world, state.viewport.zoom);
-      const to: Anchor = hit
-        ? { itemId: hit.id, x: world.x, y: world.y }
-        : { x: world.x, y: world.y };
+      const to: Anchor = hit ? anchorWithSide(hit, world) : { x: world.x, y: world.y };
+      setAnchorTarget(hit ? { item: hit, side: anchorSideAt(hit, world).side } : null);
       setDraft(newConnector(gesture.from, to));
       return;
     }
@@ -948,9 +1029,7 @@ export function CanvasStage({
     } else if (gesture.kind === 'connector') {
       if (distance(gesture.start, world) > 12) {
         const hit = hitTest(board.items, world, state.viewport.zoom);
-        const to: Anchor = hit
-          ? { itemId: hit.id, x: world.x, y: world.y }
-          : { x: world.x, y: world.y };
+        const to: Anchor = hit ? anchorWithSide(hit, world) : { x: world.x, y: world.y };
         if (hit?.id !== gesture.fromId || !gesture.fromId) {
           state.addItem(newConnector(gesture.from, to));
         }
@@ -965,6 +1044,7 @@ export function CanvasStage({
     setDraft(null);
     setMarquee(null);
     setGuides({ x: [], y: [] });
+    setAnchorTarget(null);
     setCursor(baseCursor());
   };
 
@@ -978,6 +1058,7 @@ export function CanvasStage({
     setDraft(null);
     setMarquee(null);
     setGuides({ x: [], y: [] });
+    setAnchorTarget(null);
     setCursor(baseCursor());
   };
 
@@ -1003,6 +1084,46 @@ export function CanvasStage({
     if (hit) {
       if (hit.type === 'frame') {
         useLienzo.getState().select([hit.id]);
+        return;
+      }
+      if (hit.type === 'timer') {
+        const state = useLienzo.getState();
+        state.pushHistory();
+        if (hit.running) {
+          const remaining = Math.max(
+            0,
+            Math.ceil(((hit.endsAt ?? Date.now()) - Date.now()) / 1000),
+          );
+          state.updateItem(hit.id, { running: false, endsAt: null, remaining });
+        } else {
+          const remaining = hit.remaining > 0 ? hit.remaining : hit.duration;
+          state.updateItem(hit.id, {
+            running: true,
+            endsAt: Date.now() + remaining * 1000,
+            remaining,
+          });
+        }
+        return;
+      }
+      if (hit.type === 'file') {
+        const state = useLienzo.getState();
+        void (async () => {
+          try {
+            const blob = await ensureLocalFile(
+              hit.fileId,
+              state.collab.localServerUrl ?? state.collab.url,
+            );
+            if (!blob) throw new Error('El archivo no está disponible en este dispositivo.');
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank', 'noopener,noreferrer');
+            setTimeout(() => URL.revokeObjectURL(url), 60_000);
+          } catch (error) {
+            state.showToast(
+              error instanceof Error ? error.message : 'No se pudo abrir el archivo.',
+              'error',
+            );
+          }
+        })();
         return;
       }
       if ('text' in hit) {

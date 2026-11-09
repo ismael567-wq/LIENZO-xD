@@ -1,8 +1,12 @@
 import type {
+  AnchorSide,
   Board,
   BoardItem,
+  ConnectorCap,
   ConnectorItem,
   DrawItem,
+  FileItem,
+  FrameBackground,
   FrameItem,
   ImageItem,
   Point,
@@ -11,9 +15,11 @@ import type {
   StickyItem,
   TextItem,
   Theme,
+  TimerItem,
   Viewport,
 } from '../types';
 import {
+  anchorPointsOf,
   boundsOfItems,
   connectorLabelPoint,
   connectorPathPoints,
@@ -21,6 +27,7 @@ import {
   isConnector,
 } from './geometry';
 import { FONT_DISPLAY, FONT_MONO, FONT_UI, readableInk } from './theme';
+import { formatBytes } from './files';
 
 interface Palette {
   paper: string;
@@ -87,6 +94,8 @@ export interface RenderOptions {
   comments?: boolean;
   clip?: Rect | null;
   onImageLoad?: () => void;
+  /** Muestra los cuatro puntos magnéticos del objeto bajo el cursor. */
+  anchorTarget?: { item: BoardItem; side?: AnchorSide } | null;
 }
 
 interface CachedImage {
@@ -535,6 +544,197 @@ function drawImageItem(
   ctx.restore();
 }
 
+const FILE_KIND_LABEL: Record<FileItem['kind'], string> = {
+  file: 'Archivo',
+  pdf: 'PDF',
+  video: 'Vídeo',
+  audio: 'Audio',
+  csv: 'CSV',
+  doc: 'Documento',
+  sheet: 'Hoja',
+};
+
+function fileExtension(name: string): string {
+  const parts = name.split('.');
+  return parts.length > 1 ? parts[parts.length - 1].slice(0, 4).toUpperCase() : 'FILE';
+}
+
+function drawFile(
+  ctx: CanvasRenderingContext2D,
+  item: FileItem,
+  options: RenderOptions,
+): void {
+  const palette = paletteFor(options.theme);
+  const previewHeight = item.preview ? Math.min(item.h - 64, item.h * 0.62) : 0;
+  ctx.save();
+  ctx.globalAlpha = item.opacity ?? 1;
+  ctx.shadowColor = palette.shadow;
+  ctx.shadowBlur = 14;
+  ctx.shadowOffsetY = 5;
+  roundRect(ctx, item.x, item.y, item.w, item.h, 12);
+  ctx.fillStyle = palette.surface;
+  ctx.fill();
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+
+  if (previewHeight > 0 && item.preview) {
+    const entry = getImage(item.preview, options.onImageLoad);
+    ctx.save();
+    roundRect(ctx, item.x, item.y, item.w, previewHeight, 12);
+    ctx.clip();
+    if (entry.loaded) {
+      const scale = Math.max(item.w / entry.image.width, previewHeight / entry.image.height);
+      const dw = entry.image.width * scale;
+      const dh = entry.image.height * scale;
+      ctx.drawImage(
+        entry.image,
+        item.x + (item.w - dw) / 2,
+        item.y + (previewHeight - dh) / 2,
+        dw,
+        dh,
+      );
+    } else {
+      ctx.fillStyle = palette.placeholder;
+      ctx.fillRect(item.x, item.y, item.w, previewHeight);
+    }
+    ctx.restore();
+  }
+
+  const iconSize = previewHeight > 0 ? 0 : 54;
+  const iconX = item.x + 18;
+  const iconY = item.y + (previewHeight > 0 ? previewHeight + 16 : 18);
+  if (iconSize > 0) {
+    roundRect(ctx, iconX, iconY, iconSize, iconSize, 9);
+    ctx.fillStyle = palette.brand;
+    ctx.globalAlpha = (item.opacity ?? 1) * 0.14;
+    ctx.fill();
+    ctx.globalAlpha = item.opacity ?? 1;
+    ctx.fillStyle = palette.brand;
+    ctx.font = fontString(12, 700, 'mono');
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(fileExtension(item.name), iconX + iconSize / 2, iconY + iconSize / 2);
+    ctx.textAlign = 'left';
+  }
+
+  const textX = iconSize > 0 ? iconX + iconSize + 14 : item.x + 18;
+  const textTop = iconSize > 0 ? iconY + 2 : item.y + previewHeight + 18;
+  const maxWidth = item.x + item.w - 18 - textX;
+  ctx.fillStyle = palette.ink;
+  ctx.font = fontString(14, 600);
+  ctx.textBaseline = 'top';
+  const nameLines = wrapText(ctx, item.name, Math.max(60, maxWidth));
+  nameLines.slice(0, 2).forEach((line, index) => {
+    ctx.fillText(line, textX, textTop + index * 18);
+  });
+  const metaTop = textTop + Math.min(2, nameLines.length) * 18 + 6;
+  ctx.fillStyle = palette.muted;
+  ctx.font = fontString(10, 500, 'mono');
+  const meta = [
+    FILE_KIND_LABEL[item.kind] ?? 'Archivo',
+    formatBytes(item.size),
+    item.pages ? `${item.page ?? 1}/${item.pages}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  ctx.fillText(meta, textX, metaTop);
+
+  if (previewHeight === 0 && iconSize === 0) {
+    ctx.fillStyle = palette.muted;
+    ctx.font = fontString(10, 500);
+    ctx.fillText('Doble clic para abrir', textX, metaTop + 18);
+  }
+
+  roundRect(ctx, item.x, item.y, item.w, item.h, 12);
+  ctx.strokeStyle = palette.frameStroke;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawTimer(
+  ctx: CanvasRenderingContext2D,
+  item: TimerItem,
+  options: RenderOptions,
+): void {
+  const palette = paletteFor(options.theme);
+  const now = Date.now();
+  const remaining = item.running && item.endsAt
+    ? Math.max(0, Math.ceil((item.endsAt - now) / 1000))
+    : Math.max(0, item.remaining);
+  const total = Math.max(1, item.duration);
+  const done = remaining <= 0;
+  const progress = Math.min(1, remaining / total);
+  const cx = item.x + item.w / 2;
+  const cy = item.y + item.h / 2 - 6;
+  const radius = Math.max(18, Math.min(item.w, item.h) / 2 - 26);
+  ctx.save();
+  ctx.globalAlpha = item.opacity ?? 1;
+  ctx.shadowColor = palette.shadow;
+  ctx.shadowBlur = 14;
+  ctx.shadowOffsetY = 5;
+  roundRect(ctx, item.x, item.y, item.w, item.h, 14);
+  ctx.fillStyle = palette.surface;
+  ctx.fill();
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+
+  ctx.lineWidth = Math.max(5, radius * 0.16);
+  ctx.strokeStyle = palette.frameStroke;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = done ? '#E04F2F' : palette.brand;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+
+  const minutes = Math.floor(remaining / 60);
+  const seconds = remaining % 60;
+  ctx.fillStyle = done ? '#E04F2F' : palette.ink;
+  ctx.font = fontString(Math.max(20, Math.min(38, radius * 0.62)), 600, 'mono');
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(
+    `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`,
+    cx,
+    cy - 2,
+  );
+  ctx.fillStyle = palette.muted;
+  ctx.font = fontString(10, 600, 'mono');
+  const status = done ? '¡TIEMPO!' : item.running ? 'EN MARCHA' : 'EN PAUSA';
+  ctx.fillText(status, cx, cy + radius * 0.5);
+  ctx.fillStyle = palette.ink;
+  ctx.font = fontString(12, 600);
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(item.label || 'Tiempo', cx, item.y + item.h - 12);
+  ctx.textAlign = 'left';
+  ctx.restore();
+}
+
+function drawAnchorHints(
+  ctx: CanvasRenderingContext2D,
+  target: { item: BoardItem; side?: AnchorSide },
+  palette: Palette,
+  zoom: number,
+): void {
+  if (isConnector(target.item)) return;
+  const radius = 4.5 / zoom;
+  for (const anchor of anchorPointsOf(target.item)) {
+    ctx.beginPath();
+    ctx.arc(anchor.point.x, anchor.point.y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = anchor.side === target.side ? palette.brand : palette.surface;
+    ctx.fill();
+    ctx.strokeStyle = palette.brand;
+    ctx.lineWidth = 1.4 / zoom;
+    ctx.stroke();
+  }
+}
+
 function drawFrameTitle(
   ctx: CanvasRenderingContext2D,
   item: FrameItem,
@@ -570,6 +770,83 @@ function drawFrameTitle(
   ctx.restore();
 }
 
+function drawFramePattern(
+  ctx: CanvasRenderingContext2D,
+  item: FrameItem,
+  background: FrameBackground,
+  palette: Palette,
+): void {
+  if (background === 'plain') return;
+  ctx.save();
+  roundRect(ctx, item.x, item.y, item.w, item.h, 10);
+  ctx.clip();
+  const { x, y, w, h } = item;
+  ctx.strokeStyle = palette.frameStroke;
+  ctx.fillStyle = palette.frameStroke;
+  ctx.lineWidth = 1;
+  if (background === 'grid' || background === 'axes') {
+    const spacing = 32;
+    ctx.globalAlpha = background === 'axes' ? 0.45 : 0.7;
+    ctx.beginPath();
+    for (let gx = x + spacing; gx < x + w; gx += spacing) {
+      ctx.moveTo(Math.round(gx) + 0.5, y);
+      ctx.lineTo(Math.round(gx) + 0.5, y + h);
+    }
+    for (let gy = y + spacing; gy < y + h; gy += spacing) {
+      ctx.moveTo(x, Math.round(gy) + 0.5);
+      ctx.lineTo(x + w, Math.round(gy) + 0.5);
+    }
+    ctx.stroke();
+    if (background === 'axes') {
+      ctx.globalAlpha = 0.9;
+      ctx.strokeStyle = palette.brand;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(x, y + h / 2);
+      ctx.lineTo(x + w, y + h / 2);
+      ctx.moveTo(x + w / 2, y);
+      ctx.lineTo(x + w / 2, y + h);
+      ctx.stroke();
+    }
+  } else if (background === 'dots') {
+    ctx.globalAlpha = 0.8;
+    const spacing = 28;
+    const radius = 1.1;
+    ctx.beginPath();
+    for (let gx = x + spacing / 2; gx < x + w; gx += spacing) {
+      for (let gy = y + spacing / 2; gy < y + h; gy += spacing) {
+        ctx.moveTo(gx + radius, gy);
+        ctx.arc(gx, gy, radius, 0, Math.PI * 2);
+      }
+    }
+    ctx.fill();
+  } else if (background === 'lines') {
+    ctx.globalAlpha = 0.55;
+    const spacing = 34;
+    ctx.beginPath();
+    for (let gy = y + spacing; gy < y + h - 12; gy += spacing) {
+      ctx.moveTo(x + 18, Math.round(gy) + 0.5);
+      ctx.lineTo(x + w - 18, Math.round(gy) + 0.5);
+    }
+    ctx.stroke();
+  } else if (background === 'music') {
+    ctx.globalAlpha = 0.6;
+    const gap = 9;
+    const staffHeight = gap * 4;
+    const staffGap = 54;
+    for (let gy = y + 40; gy + staffHeight < y + h - 16; gy += staffHeight + staffGap) {
+      ctx.beginPath();
+      for (let line = 0; line < 5; line += 1) {
+        const ly = gy + line * gap;
+        ctx.moveTo(x + 24, Math.round(ly) + 0.5);
+        ctx.lineTo(x + w - 24, Math.round(ly) + 0.5);
+      }
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
 function drawFrame(
   ctx: CanvasRenderingContext2D,
   item: FrameItem,
@@ -584,6 +861,7 @@ function drawFrame(
   ctx.lineWidth = selected ? 2 : 1.2;
   ctx.stroke();
   ctx.restore();
+  drawFramePattern(ctx, item, item.background ?? 'plain', palette);
   drawFrameTitle(ctx, item, selected, palette);
 }
 
@@ -606,6 +884,81 @@ function drawArrow(
   );
   ctx.closePath();
   ctx.fill();
+}
+
+function drawCap(
+  ctx: CanvasRenderingContext2D,
+  cap: ConnectorCap,
+  tip: Point,
+  from: Point,
+  size: number,
+): void {
+  if (cap === 'none') return;
+  const angle = Math.atan2(tip.y - from.y, tip.x - from.x);
+  if (cap === 'arrow') {
+    drawArrow(ctx, tip, from, size);
+    return;
+  }
+  if (cap === 'dot') {
+    ctx.beginPath();
+    ctx.arc(tip.x, tip.y, Math.max(2.5, size * 0.26), 0, Math.PI * 2);
+    ctx.fill();
+    return;
+  }
+  const prongs = cap === 'crowfoot-many' ? [-0.72, 0, 0.72] : [-0.6, 0.6];
+  ctx.save();
+  ctx.strokeStyle = ctx.fillStyle;
+  ctx.lineWidth = Math.max(1.2, size * 0.18);
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  for (const offset of prongs) {
+    const a = angle + Math.PI + offset;
+    ctx.moveTo(tip.x, tip.y);
+    ctx.lineTo(tip.x + Math.cos(a) * size * 0.95, tip.y + Math.sin(a) * size * 0.95);
+  }
+  // Barra perpendicular del crowfoot.
+  const barAngle = angle + Math.PI / 2;
+  const bar = size * 0.55;
+  ctx.moveTo(tip.x + Math.cos(barAngle) * bar, tip.y + Math.sin(barAngle) * bar);
+  ctx.lineTo(tip.x - Math.cos(barAngle) * bar, tip.y - Math.sin(barAngle) * bar);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** Traza una polilínea con codos redondeados. */
+function traceRoundedPolyline(
+  ctx: CanvasRenderingContext2D,
+  points: Point[],
+  radius = 18,
+): void {
+  if (points.length < 2) return;
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let index = 1; index < points.length - 1; index += 1) {
+    const previous = points[index - 1];
+    const current = points[index];
+    const next = points[index + 1];
+    const inLength = Math.hypot(current.x - previous.x, current.y - previous.y);
+    const outLength = Math.hypot(next.x - current.x, next.y - current.y);
+    const r = Math.min(radius, inLength / 2, outLength / 2);
+    if (r < 1) {
+      ctx.lineTo(current.x, current.y);
+      continue;
+    }
+    const inAngle = Math.atan2(current.y - previous.y, current.x - previous.x);
+    const outAngle = Math.atan2(next.y - current.y, next.x - current.x);
+    const from = {
+      x: current.x - Math.cos(inAngle) * r,
+      y: current.y - Math.sin(inAngle) * r,
+    };
+    const to = {
+      x: current.x + Math.cos(outAngle) * r,
+      y: current.y + Math.sin(outAngle) * r,
+    };
+    ctx.lineTo(from.x, from.y);
+    ctx.arcTo(current.x, current.y, to.x, to.y, r);
+  }
+  const last = points[points.length - 1];
+  ctx.lineTo(last.x, last.y);
 }
 
 function drawConnector(
@@ -631,15 +984,21 @@ function drawConnector(
   ctx.lineJoin = 'round';
   applyStrokeStyle(ctx, item, item.strokeWidth);
   ctx.beginPath();
-  ctx.moveTo(first.x, first.y);
-  for (let index = 1; index < points.length; index += 1) {
-    ctx.lineTo(points[index].x, points[index].y);
+  if ((item.lineType ?? 'straight') === 'elbow') {
+    traceRoundedPolyline(ctx, points, 18);
+  } else {
+    ctx.moveTo(first.x, first.y);
+    for (let index = 1; index < points.length; index += 1) {
+      ctx.lineTo(points[index].x, points[index].y);
+    }
   }
   ctx.stroke();
   ctx.setLineDash([]);
   const size = 11 + item.strokeWidth;
-  if (item.arrowEnd) drawArrow(ctx, last, beforeLast, size);
-  if (item.arrowStart) drawArrow(ctx, first, afterFirst, size);
+  const endCap = item.endCap ?? (item.arrowEnd ? 'arrow' : 'none');
+  const startCap = item.startCap ?? (item.arrowStart ? 'arrow' : 'none');
+  drawCap(ctx, endCap, last, beforeLast, size);
+  drawCap(ctx, startCap, first, afterFirst, size);
   if (item.label) {
     const mid = connectorLabelPoint(item, board.items);
     ctx.font = fontString(12, 600);
@@ -672,7 +1031,7 @@ function drawSelection(
   ctx.strokeStyle = palette.brand;
   ctx.lineWidth = 1.8 / zoom;
   for (const item of board.items) {
-    if (!selected.has(item.id)) continue;
+    if (!selected.has(item.id) || item.hidden) continue;
     if (isConnector(item)) {
       const points = connectorPathPoints(item, board.items);
       ctx.save();
@@ -801,7 +1160,8 @@ export function renderBoard(
       );
     }
   }
-  if (board.items.length === 0 && !options.transparent) {
+  const visibleItems = board.items.filter((item) => !item.hidden);
+  if (visibleItems.length === 0 && !options.transparent) {
     drawEmptyState(ctx, width, height, preview, palette);
   }
 
@@ -816,17 +1176,25 @@ export function renderBoard(
 
   const selected = new Set(options.selected ?? []);
   const frames = board.items.filter(
-    (item): item is FrameItem => item.type === 'frame',
+    (item): item is FrameItem => item.type === 'frame' && !item.hidden,
   );
   for (const frame of frames) drawFrame(ctx, frame, selected.has(frame.id), palette);
   for (const item of board.items) {
-    if (item.type === 'frame') continue;
+    if (item.type === 'frame' || item.hidden) continue;
     if (item.type === 'sticky') drawSticky(ctx, item, options);
     else if (item.type === 'shape') drawShape(ctx, item, options);
     else if (item.type === 'text') drawText(ctx, item, options);
     else if (item.type === 'draw') drawDraw(ctx, item, options);
     else if (item.type === 'image') drawImageItem(ctx, item, options);
+    else if (item.type === 'file') drawFile(ctx, item, options);
+    else if (item.type === 'timer') drawTimer(ctx, item, options);
     else if (item.type === 'connector') drawConnector(ctx, item, board, options);
+  }
+
+  if (options.anchorTarget) {
+    ctx.save();
+    drawAnchorHints(ctx, options.anchorTarget, palette, viewport.zoom);
+    ctx.restore();
   }
 
   if (options.draft) {

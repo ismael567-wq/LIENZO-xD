@@ -19,6 +19,7 @@ import {
   Undo2,
   MoreHorizontal,
   LayoutTemplate,
+  Timer,
   Zap,
 } from 'lucide-react';
 import type { ShapeKind, Tool } from '../types';
@@ -31,6 +32,7 @@ interface ToolbarProps {
   onShapeKind: (kind: ShapeKind) => void;
   onImage: () => void;
   onTemplates: () => void;
+  onTimer: () => void;
 }
 
 interface ToolButtonProps {
@@ -81,6 +83,7 @@ export function Toolbar({
   onShapeKind,
   onImage,
   onTemplates,
+  onTimer,
 }: ToolbarProps) {
   const [shapeOpen, setShapeOpen] = useState(false);
   const shapeRef = useRef<HTMLDivElement>(null);
@@ -223,6 +226,9 @@ export function Toolbar({
       >
         <Frame size={19} />
       </ToolButton>
+      <ToolButton label="Temporizador" onClick={onTimer}>
+        <Timer size={19} />
+      </ToolButton>
       <ToolButton
         active={tool === 'comment'}
         label="Comentario"
@@ -270,6 +276,7 @@ export function MobileDock({
   onShapeKind,
   onImage,
   onTemplates,
+  onTimer,
 }: ToolbarProps) {
   const [expanded, setExpanded] = useState(false);
   const undo = useLienzo((state) => state.undo);
@@ -317,6 +324,17 @@ export function MobileDock({
           >
             <ImageIcon size={20} />
             <span>Imagen</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onTimer();
+              close();
+            }}
+            aria-label="Temporizador"
+          >
+            <Timer size={20} />
+            <span>Temporizador</span>
           </button>
           <button type="button" onClick={() => choose('comment')} aria-label="Comentario">
             <MessageCircle size={20} />
