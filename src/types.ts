@@ -71,6 +71,12 @@ interface ItemBase {
   hidden?: boolean;
   /** Enlace a otro elemento o pizarra (portal). */
   linkTo?: string;
+  /** Nombre visible del portal. */
+  linkLabel?: string;
+  /** Página a la que pertenece el objeto cuando el tablero es multipágina. */
+  pageId?: string;
+  /** Votos de sala (ids o nombres); puede repetirse para votos múltiples. */
+  votes?: string[];
   /** Comentario o nota de voz adjunta al objeto. */
   voiceNote?: VoiceNote;
 }
@@ -94,6 +100,8 @@ export interface FileItem extends ItemBase {
   /** Miniatura compacta en data URL para pintar la tarjeta. */
   preview?: string;
   kind: 'file' | 'pdf' | 'video' | 'audio' | 'csv' | 'doc' | 'sheet';
+  /** URL remota para vídeos de YouTube, Vimeo o web. */
+  url?: string;
   /** Página actual para documentos paginados. */
   page?: number;
   pages?: number;
@@ -155,6 +163,10 @@ export interface DrawItem extends ItemBase {
   color: string;
   strokeWidth: number;
   highlighter?: boolean;
+  /** Trazo con textura de tiza y polvo. */
+  chalk?: boolean;
+  /** Si el trazo pertenece a una página de un PDF, se oculta en las demás. */
+  pageOf?: { fileId: string; page: number };
 }
 
 export interface ImageItem extends ItemBase {
@@ -170,6 +182,56 @@ export interface FrameItem extends ItemBase {
   fill: string;
   /** Fondo propio del marco; si falta, hereda el del tablero. */
   background?: FrameBackground;
+  /** Layout de presentación del marco. */
+  layout?: 'blank' | 'title' | 'title-content' | 'two-columns';
+  /** Zona oculta por el velo hasta que se revela. */
+  veiled?: boolean;
+}
+
+export interface CodeItem extends ItemBase {
+  type: 'code';
+  text: string;
+  language: string;
+  fontSize: number;
+}
+
+export interface MarkdownItem extends ItemBase {
+  type: 'markdown';
+  text: string;
+  fontSize: number;
+}
+
+export interface TableItem extends ItemBase {
+  type: 'table';
+  rows: string[][];
+  fontSize: number;
+  header: boolean;
+}
+
+export interface StickerItem extends ItemBase {
+  type: 'sticker';
+  symbol: string;
+  fill?: string;
+}
+
+export interface FlashcardItem extends ItemBase {
+  type: 'flashcard';
+  front: string;
+  back: string;
+  flipped?: boolean;
+  fontSize: number;
+}
+
+export interface BoardPage {
+  id: string;
+  name: string;
+}
+
+export interface BoardLayer {
+  id: string;
+  name: string;
+  hidden?: boolean;
+  locked?: boolean;
 }
 
 export interface Anchor {
@@ -219,6 +281,11 @@ export type BoardItem =
   | DrawItem
   | ImageItem
   | FrameItem
+  | CodeItem
+  | MarkdownItem
+  | TableItem
+  | StickerItem
+  | FlashcardItem
   | FileItem
   | TimerItem
   | ConnectorItem;
@@ -233,6 +300,8 @@ export interface CommentPin {
   author: string;
   createdAt: number;
   resolved: boolean;
+  /** Clip de voz anclado al comentario. */
+  audio?: VoiceNote;
 }
 
 export interface Board {
@@ -251,6 +320,20 @@ export interface Board {
   deletedAt?: number;
   /** Bloquea la edición del lienzo sin impedir mover la vista. */
   locked?: boolean;
+  /** Páginas del tablero; si falta se usa una página implícita. */
+  pages?: BoardPage[];
+  /** Página visible en la sesión actual. */
+  currentPageId?: string;
+  /** Capas visibles del tablero. */
+  layers?: BoardLayer[];
+  /** Rejilla invisible para alinear notas. */
+  noteGrid?: boolean;
+  /** Velo de aula: oculta marcos no revelados. */
+  veil?: boolean;
+  /** Marcos revelados del velo. */
+  revealedFrames?: string[];
+  /** Página visible por PDF para anclar trazos. */
+  pdfPages?: Record<string, number>;
 }
 
 export interface HistorySnapshot {
@@ -318,6 +401,11 @@ export type AnyItemPatch = Partial<
     Omit<DrawItem, 'type' | 'id'> &
     Omit<ImageItem, 'type' | 'id'> &
     Omit<FrameItem, 'type' | 'id'> &
+    Omit<CodeItem, 'type' | 'id'> &
+    Omit<MarkdownItem, 'type' | 'id'> &
+    Omit<TableItem, 'type' | 'id'> &
+    Omit<StickerItem, 'type' | 'id'> &
+    Omit<FlashcardItem, 'type' | 'id'> &
     Omit<FileItem, 'type' | 'id'> &
     Omit<TimerItem, 'type' | 'id'> &
     Omit<ConnectorItem, 'type' | 'id'>

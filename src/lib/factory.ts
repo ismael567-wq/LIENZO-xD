@@ -1,17 +1,22 @@
 import type {
   Anchor,
   BoardItem,
+  CodeItem,
   ConnectorCap,
   ConnectorItem,
   DrawItem,
   FileItem,
+  FlashcardItem,
   FrameItem,
   ImageItem,
+  MarkdownItem,
   Point,
   Rect,
   ShapeItem,
   ShapeKind,
+  StickerItem,
   StickyItem,
+  TableItem,
   TextItem,
   TimerItem,
 } from '../types';
@@ -238,6 +243,83 @@ export function newTimerItem(point: Point, minutes = 5): TimerItem {
     remaining: Math.max(1, Math.round(minutes)) * 60,
     running: false,
     sound: true,
+    updatedAt: now(),
+  };
+}
+
+export function newCode(point: Point, text = '', language = 'ts'): CodeItem {
+  return {
+    id: uid(9),
+    type: 'code',
+    x: Math.round(point.x - 210),
+    y: Math.round(point.y - 120),
+    w: 420,
+    h: 240,
+    text,
+    language,
+    fontSize: 14,
+    updatedAt: now(),
+  };
+}
+
+export function newMarkdown(point: Point, text = '# Idea\n\n- Punto uno\n- [ ] Tarea'): MarkdownItem {
+  return {
+    id: uid(9),
+    type: 'markdown',
+    x: Math.round(point.x - 190),
+    y: Math.round(point.y - 110),
+    w: 380,
+    h: 220,
+    text,
+    fontSize: 16,
+    updatedAt: now(),
+  };
+}
+
+export function newTable(point: Point, rows?: string[][]): TableItem {
+  return {
+    id: uid(9),
+    type: 'table',
+    x: Math.round(point.x - 200),
+    y: Math.round(point.y - 110),
+    w: 400,
+    h: 220,
+    rows: rows ?? [
+      ['Columna 1', 'Columna 2', 'Columna 3'],
+      ['', '', ''],
+      ['', '', ''],
+    ],
+    fontSize: 13,
+    header: true,
+    updatedAt: now(),
+  };
+}
+
+export function newSticker(point: Point, symbol = '⭐'): StickerItem {
+  return {
+    id: uid(9),
+    type: 'sticker',
+    x: Math.round(point.x - 48),
+    y: Math.round(point.y - 48),
+    w: 96,
+    h: 96,
+    symbol,
+    updatedAt: now(),
+  };
+}
+
+export function newFlashcard(point: Point, front = '', back = ''): FlashcardItem {
+  return {
+    id: uid(9),
+    type: 'flashcard',
+    x: Math.round(point.x - 150),
+    y: Math.round(point.y - 100),
+    w: 300,
+    h: 200,
+    front,
+    back,
+    flipped: false,
+    fontSize: 18,
     updatedAt: now(),
   };
 }

@@ -14,6 +14,11 @@ const TYPE_LABEL: Record<BoardItem['type'], string> = {
   file: 'Archivo',
   timer: 'Temporizador',
   connector: 'Conector',
+  code: 'Código',
+  markdown: 'Markdown',
+  table: 'Tabla',
+  sticker: 'Sticker',
+  flashcard: 'Flashcard',
 };
 
 function searchableText(item: BoardItem): string {
@@ -32,6 +37,16 @@ function searchableText(item: BoardItem): string {
       return item.label;
     case 'image':
       return item.alt;
+    case 'code':
+      return item.text;
+    case 'markdown':
+      return item.text;
+    case 'table':
+      return item.rows.flat().join(' ');
+    case 'sticker':
+      return item.symbol;
+    case 'flashcard':
+      return `${item.front} ${item.back}`;
     default:
       return '';
   }

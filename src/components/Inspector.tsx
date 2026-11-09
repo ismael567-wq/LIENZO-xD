@@ -213,7 +213,7 @@ export function Inspector({ board, onClose, onImageReplace, onTemplates }: Inspe
   const isTimer = single?.type === 'timer';
 
   const commonFill =
-    single && 'fill' in single
+    single && 'fill' in single && single.fill
       ? single.fill
       : selected.find((item) => 'fill' in item && item.type === 'shape')?.fill ?? '#FFFDF7';
 

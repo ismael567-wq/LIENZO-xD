@@ -2,17 +2,22 @@ import type {
   AnchorSide,
   Board,
   BoardItem,
+  CodeItem,
   ConnectorCap,
   ConnectorItem,
   DrawItem,
   FileItem,
+  FlashcardItem,
   FrameBackground,
   FrameItem,
   ImageItem,
+  MarkdownItem,
   Point,
   Rect,
   ShapeItem,
+  StickerItem,
   StickyItem,
+  TableItem,
   TextItem,
   Theme,
   TimerItem,
@@ -509,6 +514,30 @@ function drawDraw(
   const last = points[points.length - 1];
   ctx.lineTo(last.x, last.y);
   ctx.stroke();
+  if (item.chalk) {
+    // Textura de tiza: dos pasadas desplazadas y motas de polvo.
+    ctx.globalAlpha *= 0.35;
+    ctx.lineWidth = Math.max(0.7, item.strokeWidth * 0.55);
+    for (let pass = 0; pass < 2; pass += 1) {
+      ctx.beginPath();
+      ctx.moveTo(points[0].x + (pass ? 0.8 : -0.6), points[0].y + (pass ? -0.7 : 0.5));
+      for (let index = 1; index < points.length; index += 1) {
+        const jitterX = Math.sin(index * 12.9898 + pass * 3.1) * 0.9;
+        const jitterY = Math.cos(index * 78.233 + pass * 1.7) * 0.9;
+        ctx.lineTo(points[index].x + jitterX, points[index].y + jitterY);
+      }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = (item.opacity ?? 1) * 0.25;
+    ctx.fillStyle = ink;
+    for (let index = 0; index < points.length; index += 4) {
+      const point = points[index];
+      const radius = Math.max(0.4, item.strokeWidth * 0.16);
+      ctx.beginPath();
+      ctx.arc(point.x + Math.sin(index) * 1.6, point.y + Math.cos(index) * 1.6, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
   ctx.restore();
 }
 
@@ -650,6 +679,267 @@ function drawFile(
   ctx.strokeStyle = palette.frameStroke;
   ctx.lineWidth = 1;
   ctx.stroke();
+  ctx.restore();
+}
+
+function drawCode(
+  ctx: CanvasRenderingContext2D,
+  item: CodeItem,
+  options: RenderOptions,
+): void {
+  const palette = paletteFor(options.theme);
+  const padding = 14;
+  ctx.save();
+  ctx.globalAlpha = item.opacity ?? 1;
+  ctx.shadowColor = palette.shadow;
+  ctx.shadowBlur = 14;
+  ctx.shadowOffsetY = 5;
+  roundRect(ctx, item.x, item.y, item.w, item.h, 12);
+  ctx.fillStyle = options.theme === 'dark' ? '#151A18' : '#F7F5EF';
+  ctx.fill();
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+
+  ctx.save();
+  roundRect(ctx, item.x, item.y, item.w, item.h, 12);
+  ctx.clip();
+  const headerHeight = 26;
+  ctx.fillStyle = options.theme === 'dark' ? '#202824' : '#EDE9DC';
+  ctx.fillRect(item.x, item.y, item.w, headerHeight);
+  ctx.fillStyle = palette.muted;
+  ctx.font = fontString(10, 600, 'mono');
+  ctx.textBaseline = 'middle';
+  ctx.fillText(item.language.toUpperCase() || 'CÓDIGO', item.x + padding, item.y + headerHeight / 2);
+  ctx.textBaseline = 'top';
+  const fontSize = item.fontSize || 14;
+  const lines = wrapText(ctx, item.text || '// escribe código…', item.w - padding * 2);
+  lines.slice(0, Math.floor((item.h - headerHeight - padding) / (fontSize * 1.5))).forEach((line, index) => {
+    const tokens = line.split(/(\b(?:const|let|var|function|return|if|else|for|while|import|from|export|class|new|async|await|true|false|null)\b|"[^"]*"|'[^']*'|\/\/.*$|\d+)/g);
+    let x = item.x + padding;
+    for (const token of tokens) {
+      if (!token) continue;
+      const isKeyword = /^(?:const|let|var|function|return|if|else|for|while|import|from|export|class|new|async|await|true|false|null)$/.test(token);
+      const isString = /^["']/.test(token);
+      const isComment = token.startsWith('//');
+      const isNumber = /^\d+$/.test(token);
+      ctx.fillStyle = isKeyword
+        ? options.theme === 'dark' ? '#C7EC4A' : '#4E611C'
+        : isString
+          ? options.theme === 'dark' ? '#9ECBFF' : '#2E5FB7'
+          : isComment
+            ? palette.muted
+            : isNumber
+              ? options.theme === 'dark' ? '#FFB27A' : '#A34A13'
+              : palette.ink;
+      ctx.font = fontString(fontSize, 400, 'mono');
+      ctx.fillText(token, x, item.y + headerHeight + padding + index * fontSize * 1.5);
+      x += ctx.measureText(token).width;
+    }
+  });
+  ctx.restore();
+  roundRect(ctx, item.x, item.y, item.w, item.h, 12);
+  ctx.strokeStyle = palette.frameStroke;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function markdownLines(text: string): Array<{ text: string; kind: 'h1' | 'h2' | 'bullet' | 'check' | 'quote' | 'body'; checked?: boolean }> {
+  return text.replace(/\r/g, '').split('\n').map((raw) => {
+    const line = raw.trimEnd();
+    if (/^#\s+/.test(line)) return { text: line.replace(/^#\s+/, ''), kind: 'h1' as const };
+    if (/^##\s+/.test(line)) return { text: line.replace(/^##\s+/, ''), kind: 'h2' as const };
+    if (/^[-*]\s+\[[ xX]\]\s+/.test(line)) {
+      return {
+        text: line.replace(/^[-*]\s+\[[ xX]\]\s+/, ''),
+        kind: 'check' as const,
+        checked: /\[[xX]\]/.test(line),
+      };
+    }
+    if (/^[-*]\s+/.test(line)) return { text: line.replace(/^[-*]\s+/, ''), kind: 'bullet' as const };
+    if (/^>\s+/.test(line)) return { text: line.replace(/^>\s+/, ''), kind: 'quote' as const };
+    return { text: line, kind: 'body' as const };
+  });
+}
+
+function drawMarkdown(
+  ctx: CanvasRenderingContext2D,
+  item: MarkdownItem,
+  options: RenderOptions,
+): void {
+  const palette = paletteFor(options.theme);
+  ctx.save();
+  ctx.globalAlpha = item.opacity ?? 1;
+  ctx.shadowColor = palette.shadow;
+  ctx.shadowBlur = 12;
+  ctx.shadowOffsetY = 4;
+  roundRect(ctx, item.x, item.y, item.w, item.h, 10);
+  ctx.fillStyle = options.theme === 'dark' ? '#1B211E' : '#FFFDF7';
+  ctx.fill();
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.save();
+  roundRect(ctx, item.x, item.y, item.w, item.h, 10);
+  ctx.clip();
+  let y = item.y + 16;
+  const padding = 18;
+  for (const line of markdownLines(item.text || '# Título\n\n- Punto uno')) {
+    const base = item.fontSize || 16;
+    const size = line.kind === 'h1' ? base * 1.5 : line.kind === 'h2' ? base * 1.2 : base;
+    ctx.font = fontString(size, line.kind === 'h1' ? 700 : line.kind === 'h2' ? 650 : 400, line.kind === 'h1' || line.kind === 'h2' ? 'serif' : 'sans');
+    ctx.fillStyle = line.kind === 'quote' ? palette.muted : palette.ink;
+    const prefix = line.kind === 'bullet' ? '• ' : line.kind === 'check' ? (line.checked ? '☑ ' : '☐ ') : '';
+    const lines = wrapText(ctx, prefix + line.text, item.w - padding * 2);
+    for (const text of lines) {
+      if (y > item.y + item.h - 12) break;
+      ctx.fillText(text, item.x + padding, y);
+      y += size * 1.4;
+    }
+    if (line.kind === 'h1' || line.kind === 'h2') y += 3;
+    if (y > item.y + item.h - 12) break;
+  }
+  ctx.restore();
+  roundRect(ctx, item.x, item.y, item.w, item.h, 10);
+  ctx.strokeStyle = palette.frameStroke;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawTable(
+  ctx: CanvasRenderingContext2D,
+  item: TableItem,
+  options: RenderOptions,
+): void {
+  const palette = paletteFor(options.theme);
+  const rows = item.rows.length > 0 ? item.rows : [['']];
+  const columns = Math.max(1, ...rows.map((row) => row.length));
+  const cellW = item.w / columns;
+  const cellH = item.h / Math.max(1, rows.length);
+  ctx.save();
+  ctx.globalAlpha = item.opacity ?? 1;
+  ctx.fillStyle = options.theme === 'dark' ? '#1B211E' : '#FFFDF7';
+  ctx.fillRect(item.x, item.y, item.w, item.h);
+  ctx.font = fontString(item.fontSize || 13, 500);
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+    if (item.header && rowIndex === 0) {
+      ctx.fillStyle = options.theme === 'dark' ? '#26302B' : '#EDE9DC';
+      ctx.fillRect(item.x, item.y + rowIndex * cellH, item.w, cellH);
+    }
+    for (let columnIndex = 0; columnIndex < columns; columnIndex += 1) {
+      const text = rows[rowIndex]?.[columnIndex] ?? '';
+      ctx.fillStyle = palette.ink;
+      ctx.font = fontString(item.fontSize || 13, item.header && rowIndex === 0 ? 650 : 400);
+      const clipped = wrapText(ctx, text, Math.max(10, cellW - 16))[0] ?? '';
+      ctx.fillText(clipped, item.x + columnIndex * cellW + 8, item.y + rowIndex * cellH + cellH / 2);
+    }
+  }
+  ctx.strokeStyle = palette.frameStroke;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let columnIndex = 1; columnIndex < columns; columnIndex += 1) {
+    ctx.moveTo(Math.round(item.x + columnIndex * cellW) + 0.5, item.y);
+    ctx.lineTo(Math.round(item.x + columnIndex * cellW) + 0.5, item.y + item.h);
+  }
+  for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
+    ctx.moveTo(item.x, Math.round(item.y + rowIndex * cellH) + 0.5);
+    ctx.lineTo(item.x + item.w, Math.round(item.y + rowIndex * cellH) + 0.5);
+  }
+  ctx.stroke();
+  ctx.strokeRect(item.x + 0.5, item.y + 0.5, item.w - 1, item.h - 1);
+  ctx.restore();
+}
+
+function drawSticker(
+  ctx: CanvasRenderingContext2D,
+  item: StickerItem,
+  _options: RenderOptions,
+): void {
+  ctx.save();
+  ctx.globalAlpha = item.opacity ?? 1;
+  const size = Math.min(item.w, item.h);
+  ctx.font = `${Math.max(12, size * 0.72)}px ${FONT_UI}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = item.fill ?? '#16211E';
+  ctx.fillText(item.symbol, item.x + item.w / 2, item.y + item.h / 2);
+  ctx.restore();
+}
+
+function drawFlashcard(
+  ctx: CanvasRenderingContext2D,
+  item: FlashcardItem,
+  options: RenderOptions,
+): void {
+  const palette = paletteFor(options.theme);
+  ctx.save();
+  ctx.globalAlpha = item.opacity ?? 1;
+  ctx.shadowColor = palette.shadow;
+  ctx.shadowBlur = 16;
+  ctx.shadowOffsetY = 6;
+  roundRect(ctx, item.x, item.y, item.w, item.h, 14);
+  ctx.fillStyle = item.flipped
+    ? options.theme === 'dark' ? '#2A3A33' : '#E8F1EA'
+    : options.theme === 'dark' ? '#1B211E' : '#FFFDF7';
+  ctx.fill();
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.strokeStyle = palette.frameStroke;
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+
+  const text = item.flipped ? item.back : item.front;
+  ctx.fillStyle = palette.ink;
+  ctx.font = fontString(item.fontSize || 18, 600, 'serif');
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const lines = wrapText(ctx, text || (item.flipped ? 'Respuesta' : 'Pregunta'), item.w - 40);
+  const lineHeight = (item.fontSize || 18) * 1.35;
+  const startY = item.y + item.h / 2 - ((lines.length - 1) * lineHeight) / 2;
+  lines.slice(0, 8).forEach((line, index) => {
+    ctx.fillText(line, item.x + item.w / 2, startY + index * lineHeight);
+  });
+  ctx.font = fontString(10, 600, 'mono');
+  ctx.fillStyle = palette.muted;
+  ctx.fillText(item.flipped ? 'RESPUESTA · CLIC PARA VOLTEAR' : 'PREGUNTA · CLIC PARA VOLTEAR', item.x + item.w / 2, item.y + item.h - 16);
+  ctx.textAlign = 'left';
+  ctx.restore();
+}
+
+function drawItemExtras(
+  ctx: CanvasRenderingContext2D,
+  item: BoardItem,
+  options: RenderOptions,
+): void {
+  const palette = paletteFor(options.theme);
+  if (isConnector(item)) return;
+  const badges: Array<{ text: string; color: string }> = [];
+  if (item.voiceNote) badges.push({ text: '▶ voz', color: palette.brand });
+  if (item.linkTo) badges.push({ text: '↗ portal', color: palette.brand });
+  if (item.votes && item.votes.length > 0) badges.push({ text: `● ${item.votes.length}`, color: '#E04F2F' });
+  if (badges.length === 0) return;
+  ctx.save();
+  ctx.font = fontString(9, 700, 'mono');
+  let x = item.x + 8;
+  const y = item.y + item.h - 8;
+  for (const badge of badges) {
+    const width = ctx.measureText(badge.text).width + 10;
+    roundRect(ctx, x, y - 13, width, 16, 5);
+    ctx.fillStyle = palette.surface;
+    ctx.fill();
+    ctx.strokeStyle = badge.color;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = badge.color;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(badge.text, x + 5, y - 4.5);
+    x += width + 4;
+  }
   ctx.restore();
 }
 
@@ -862,6 +1152,38 @@ function drawFrame(
   ctx.stroke();
   ctx.restore();
   drawFramePattern(ctx, item, item.background ?? 'plain', palette);
+  if (item.layout && item.layout !== 'blank') {
+    ctx.save();
+    roundRect(ctx, item.x, item.y, item.w, item.h, 10);
+    ctx.clip();
+    ctx.strokeStyle = palette.brand;
+    ctx.globalAlpha = 0.26;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([8, 8]);
+    if (item.layout === 'title') {
+      ctx.beginPath();
+      ctx.moveTo(item.x + item.w * 0.18, item.y + item.h * 0.55);
+      ctx.lineTo(item.x + item.w * 0.82, item.y + item.h * 0.55);
+      ctx.stroke();
+    } else if (item.layout === 'title-content') {
+      ctx.beginPath();
+      ctx.moveTo(item.x + item.w * 0.1, item.y + item.h * 0.28);
+      ctx.lineTo(item.x + item.w * 0.9, item.y + item.h * 0.28);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(item.x + item.w * 0.1, item.y + item.h * 0.52);
+      ctx.lineTo(item.x + item.w * 0.9, item.y + item.h * 0.52);
+      ctx.moveTo(item.x + item.w * 0.1, item.y + item.h * 0.7);
+      ctx.lineTo(item.x + item.w * 0.9, item.y + item.h * 0.7);
+      ctx.stroke();
+    } else if (item.layout === 'two-columns') {
+      ctx.beginPath();
+      ctx.moveTo(item.x + item.w / 2, item.y + item.h * 0.16);
+      ctx.lineTo(item.x + item.w / 2, item.y + item.h * 0.86);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
   drawFrameTitle(ctx, item, selected, palette);
 }
 
@@ -1160,7 +1482,24 @@ export function renderBoard(
       );
     }
   }
-  const visibleItems = board.items.filter((item) => !item.hidden);
+  const layerHidden = new Set(
+    (board.layers ?? []).filter((layer) => layer.hidden).map((layer) => layer.id),
+  );
+  const itemVisible = (item: BoardItem): boolean => {
+    if (item.hidden) return false;
+    if (item.layerId && layerHidden.has(item.layerId)) return false;
+    if (board.pages && board.pages.length > 0) {
+      const pageId = board.currentPageId ?? board.pages[0]?.id;
+      const itemPageId = (item as { pageId?: string }).pageId;
+      if (itemPageId && itemPageId !== pageId) return false;
+    }
+    if (item.type === 'draw' && item.pageOf) {
+      const current = board.pdfPages?.[item.pageOf.fileId] ?? 1;
+      if (current !== item.pageOf.page) return false;
+    }
+    return true;
+  };
+  const visibleItems = board.items.filter(itemVisible);
   if (visibleItems.length === 0 && !options.transparent) {
     drawEmptyState(ctx, width, height, preview, palette);
   }
@@ -1176,11 +1515,11 @@ export function renderBoard(
 
   const selected = new Set(options.selected ?? []);
   const frames = board.items.filter(
-    (item): item is FrameItem => item.type === 'frame' && !item.hidden,
+    (item): item is FrameItem => item.type === 'frame' && itemVisible(item),
   );
   for (const frame of frames) drawFrame(ctx, frame, selected.has(frame.id), palette);
   for (const item of board.items) {
-    if (item.type === 'frame' || item.hidden) continue;
+    if (item.type === 'frame' || !itemVisible(item)) continue;
     if (item.type === 'sticky') drawSticky(ctx, item, options);
     else if (item.type === 'shape') drawShape(ctx, item, options);
     else if (item.type === 'text') drawText(ctx, item, options);
@@ -1188,7 +1527,33 @@ export function renderBoard(
     else if (item.type === 'image') drawImageItem(ctx, item, options);
     else if (item.type === 'file') drawFile(ctx, item, options);
     else if (item.type === 'timer') drawTimer(ctx, item, options);
+    else if (item.type === 'code') drawCode(ctx, item, options);
+    else if (item.type === 'markdown') drawMarkdown(ctx, item, options);
+    else if (item.type === 'table') drawTable(ctx, item, options);
+    else if (item.type === 'sticker') drawSticker(ctx, item, options);
+    else if (item.type === 'flashcard') drawFlashcard(ctx, item, options);
     else if (item.type === 'connector') drawConnector(ctx, item, board, options);
+    if (item.type !== 'connector') drawItemExtras(ctx, item, options);
+  }
+
+  if (board.veil) {
+    const revealed = new Set(board.revealedFrames ?? []);
+    for (const frame of frames) {
+      if (!frame.veiled || revealed.has(frame.id)) continue;
+      ctx.save();
+      roundRect(ctx, frame.x, frame.y, frame.w, frame.h, 10);
+      ctx.fillStyle = options.theme === 'dark' ? '#111513' : '#26241F';
+      ctx.fill();
+      ctx.fillStyle = options.theme === 'dark' ? '#C7EC4A' : '#FFFDF7';
+      ctx.font = fontString(16, 650, 'serif');
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Velo · marco oculto', frame.x + frame.w / 2, frame.y + frame.h / 2 - 8);
+      ctx.font = fontString(10, 600, 'mono');
+      ctx.globalAlpha = 0.7;
+      ctx.fillText('CLIC PARA REVELAR', frame.x + frame.w / 2, frame.y + frame.h / 2 + 16);
+      ctx.restore();
+    }
   }
 
   if (options.anchorTarget) {
