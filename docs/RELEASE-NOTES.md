@@ -4,7 +4,18 @@
 
 **tiza — pizarras en vivo.** La pizarra visual local-first para Windows, web y móvil estrena identidad y una primera tanda de funciones de productividad. Sin cuentas, sin nube y con tus tableros en tu dispositivo.
 
-## Novedades
+## v1.4: objetos ricos y aula en vivo
+
+- **Código, Markdown, tablas, stickers, flashcards y Mermaid** como objetos nativos del lienzo.
+- **PDF.js** con anotación sobre páginas, vídeo local o por URL y notas de voz.
+- **Aula**: páginas, capas, marcos con layout, velo, proyector, regla, rejilla y reacciones.
+- **Sala LAN**: roles editor/visor, chat, seguimiento, votación por puntos y traer a todos.
+- **Modo estudio** para repasar flashcards y **mapa mental** con `Tab`.
+- **Portales** entre objetos, marcos y tableros.
+- **Importadores Excalidraw, JAM y Mermaid**; exportación Markdown y piezas reutilizables.
+- **Aplanar selección**, trazos de tiza/resaltador, CSV a tabla y audio en comentarios.
+
+## Novedades de v1.3
 
 - **Nueva identidad tiza**: logo de sonrisa de tiza, iconos, manifest y textos de la app.
 - **Rediseño v2**: tema noche como principal, tema día, selector automático, Space Grotesk + Inter + JetBrains Mono y acabado nuevo en dashboard, tablero, menús, modales y móvil.

@@ -6,10 +6,11 @@ import {
   ImagePlus,
   Lock,
   MessageSquarePlus,
+  Mic,
   SlidersHorizontal,
   X,
 } from 'lucide-react';
-import type { Board, Point } from '../types';
+import type { Board, InsertKind, Point, VoiceNote } from '../types';
 import { currentBoardOf, useLienzo } from '../store/boardStore';
 import { CanvasStage } from './CanvasStage';
 import { TopBar } from './TopBar';
@@ -19,6 +20,11 @@ import { ZoomBar } from './ZoomBar';
 import { TextEditor } from './TextEditor';
 import { QuickActions } from './QuickActions';
 import { ContextMenu, type ContextMenuState } from './ContextMenu';
+import { InsertMenu } from './InsertMenu';
+import { MediaOverlay } from './MediaOverlay';
+import { BoardChrome } from './BoardChrome';
+import { RoomPanel } from './RoomPanel';
+import { VoiceRecorder } from './VoiceRecorder';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import {
   boundsOfItems,
@@ -27,7 +33,20 @@ import {
   worldToScreen,
   zoomAtPoint,
 } from '../lib/geometry';
-import { newFile, newImage, newText, newTimerItem } from '../lib/factory';
+import {
+  newCode,
+  newConnector,
+  newFile,
+  newFlashcard,
+  newImage,
+  newMarkdown,
+  newSticker,
+  newStickyRect,
+  newTable,
+  newText,
+  newTimerItem,
+} from '../lib/factory';
+import { formatDuration } from '../lib/audio';
 import { fileToImage } from '../lib/export';
 import {
   guessFileKind,
@@ -108,6 +127,8 @@ interface CommentComposerProps {
 
 function CommentComposer({ point, onClose }: CommentComposerProps) {
   const [text, setText] = useState('');
+  const [audio, setAudio] = useState<VoiceNote | null>(null);
+  const [recording, setRecording] = useState(false);
   const viewport = useLienzo((state) => state.viewport);
   const stageSize = useLienzo((state) => state.stageSize);
   const addComment = useLienzo((state) => state.addComment);
@@ -132,8 +153,8 @@ function CommentComposer({ point, onClose }: CommentComposerProps) {
   }, [onClose]);
 
   const publish = () => {
-    if (!text.trim()) return;
-    addComment(point, text);
+    if (!text.trim() && !audio) return;
+    addComment(point, text, audio ?? undefined);
     useLienzo.getState().setTool('select');
     onClose();
   };
@@ -164,10 +185,81 @@ function CommentComposer({ point, onClose }: CommentComposerProps) {
       />
       <div className="comment-composer-foot">
         <span>{userName}</span>
-        <button type="button" className="btn btn-primary btn-sm" onClick={publish} disabled={!text.trim()}>
-          Publicar
-        </button>
+        <div className="comment-composer-tools">
+          {audio ? (
+            <span className="comment-audio-badge" title="Comentario con nota de voz">
+              <Mic size={12} /> {audio.duration}s
+            </span>
+          ) : null}
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={() => setRecording(true)}
+            aria-label="Añadir nota de voz"
+            title="Nota de voz"
+          >
+            <Mic size={15} />
+          </button>
+          <button type="button" className="btn btn-primary btn-sm" onClick={publish} disabled={!text.trim() && !audio}>
+            Publicar
+          </button>
+        </div>
       </div>
+      {recording ? (
+        <VoiceRecorder
+          title="Nota de voz del comentario"
+          author={userName}
+          onCancel={() => setRecording(false)}
+          onSaved={(note) => {
+            setAudio(note);
+            setRecording(false);
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function RulerOverlay({
+  viewport,
+  stageSize,
+}: {
+  viewport: { x: number; y: number; zoom: number };
+  stageSize: { w: number; h: number };
+}) {
+  const steps = [10, 20, 50, 100, 200, 500, 1000];
+  const step = steps.find((candidate) => candidate * viewport.zoom >= 60) ?? 1000;
+  const startX = -viewport.x / viewport.zoom;
+  const startY = -viewport.y / viewport.zoom;
+  const endX = startX + stageSize.w / viewport.zoom;
+  const endY = startY + stageSize.h / viewport.zoom;
+  const firstX = Math.floor(startX / step) * step;
+  const firstY = Math.floor(startY / step) * step;
+  const marksX: Array<{ screen: number; world: number }> = [];
+  const marksY: Array<{ screen: number; world: number }> = [];
+  for (let world = firstX; world <= endX; world += step) {
+    marksX.push({ screen: world * viewport.zoom + viewport.x, world });
+  }
+  for (let world = firstY; world <= endY; world += step) {
+    marksY.push({ screen: world * viewport.zoom + viewport.y, world });
+  }
+  return (
+    <div className="ruler-layer" aria-hidden="true">
+      <div className="ruler ruler-x">
+        {marksX.map((mark) => (
+          <span key={mark.world} style={{ left: mark.screen }}>
+            <em>{mark.world}</em>
+          </span>
+        ))}
+      </div>
+      <div className="ruler ruler-y">
+        {marksY.map((mark) => (
+          <span key={mark.world} style={{ top: mark.screen }}>
+            <em>{mark.world}</em>
+          </span>
+        ))}
+      </div>
+      <div className="ruler-origin" style={{ left: viewport.x, top: viewport.y }} />
     </div>
   );
 }
@@ -192,8 +284,12 @@ export function BoardView() {
   const [pendingComment, setPendingComment] = useState<Point | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [dropActive, setDropActive] = useState(false);
+  const [roomOpen, setRoomOpen] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const replaceIdRef = useRef<string | null>(null);
+  const voicePointRef = useRef<Point | null>(null);
   const mainRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -293,6 +389,73 @@ export function BoardView() {
     state.addItem(newTimerItem(world, 5));
     state.setTool('select');
     state.showToast('Temporizador de 5 minutos añadido. Doble clic para iniciar.', 'info');
+  };
+
+  const insertObject = (kind: InsertKind) => {
+    const state = useLienzo.getState();
+    const world = screenToWorld(
+      { x: state.stageSize.w / 2, y: state.stageSize.h / 2 },
+      state.viewport,
+    );
+    state.setTool('select');
+    switch (kind) {
+      case 'code':
+        state.addItem(newCode(world, '', 'ts'), { edit: true });
+        return;
+      case 'markdown':
+        state.addItem(newMarkdown(world), { edit: true });
+        return;
+      case 'table':
+        state.addItem(newTable(world), { edit: true });
+        return;
+      case 'sticker':
+        state.addItem(newSticker(world, '⭐'));
+        return;
+      case 'flashcard':
+        state.addItem(newFlashcard(world, '¿Qué quieres recordar?', 'Tu respuesta'), {
+          edit: true,
+        });
+        return;
+      case 'mermaid':
+        state.addItem(
+          newCode(
+            world,
+            'graph TD\n  A[Idea] --> B[Decisión]\n  B --> C[Acción]\n  B --> D[Revisión]',
+            'mermaid',
+          ),
+          { edit: true },
+        );
+        return;
+      case 'voice':
+        voicePointRef.current = world;
+        setVoiceOpen(true);
+        return;
+      case 'video': {
+        const url = window.prompt(
+          'Pega una URL de YouTube, Vimeo o un vídeo web. Deja vacío para elegir un archivo.',
+          '',
+        );
+        if (url === null) return;
+        if (url.trim()) {
+          state.addItem(
+            newFile(world, {
+              fileId: `remote-${uid(10)}`,
+              name: 'Vídeo remoto',
+              mime: 'video/url',
+              size: 0,
+              kind: 'video',
+              url: url.trim(),
+            }),
+          );
+          state.showToast('Vídeo añadido. Doble clic para reproducirlo.', 'success');
+        } else {
+          videoInputRef.current?.click();
+        }
+        return;
+      }
+      default:
+        return;
+    }
   };
 
   const addDroppedFiles = useCallback(
@@ -542,7 +705,16 @@ export function BoardView() {
       }
       if (key === 'enter' && state.selected.length === 1) {
         const item = current.items.find((candidate) => candidate.id === state.selected[0]);
-        if (item && (item.type === 'sticky' || item.type === 'text' || item.type === 'shape')) {
+        if (
+          item &&
+          (item.type === 'sticky' ||
+            item.type === 'text' ||
+            item.type === 'shape' ||
+            item.type === 'code' ||
+            item.type === 'markdown' ||
+            item.type === 'table' ||
+            item.type === 'flashcard')
+        ) {
           event.preventDefault();
           state.startEditing(item.id);
         }
@@ -591,6 +763,44 @@ export function BoardView() {
         return;
       }
       if (mod) return;
+
+      if (event.key === 'Tab' && state.selected.length === 1) {
+        const parent = current.items.find((candidate) => candidate.id === state.selected[0]);
+        if (parent && parent.type === 'sticky') {
+          event.preventDefault();
+          const childCount = current.items.filter(
+            (item) => item.type === 'connector' && item.from.itemId === parent.id,
+          ).length;
+          const child = newStickyRect(
+            {
+              x: parent.x + parent.w + 110,
+              y: parent.y + childCount * (parent.h + 36),
+              w: parent.w,
+              h: parent.h,
+            },
+            (childCount + 1) % 6,
+          );
+          child.text = '';
+          const connector = newConnector(
+            {
+              itemId: parent.id,
+              x: parent.x + parent.w,
+              y: parent.y + parent.h / 2,
+              side: 'right',
+            },
+            {
+              itemId: child.id,
+              x: child.x,
+              y: child.y + child.h / 2,
+              side: 'left',
+            },
+          );
+          state.pushHistory();
+          state.addItem(connector, { select: false, history: false });
+          state.addItem(child, { edit: true, history: false });
+          return;
+        }
+      }
 
       const tools: Record<string, () => void> = {
         v: () => state.setTool('select'),
@@ -668,6 +878,14 @@ export function BoardView() {
         />
 
         <TextEditor board={board} viewport={viewport} />
+
+        {!presentation ? (
+          <BoardChrome board={board} onRoom={() => setRoomOpen((value) => !value)} />
+        ) : null}
+
+        {board.ruler && !presentation ? (
+          <RulerOverlay viewport={viewport} stageSize={stageSize} />
+        ) : null}
 
         {board.locked && !presentation ? (
           <button
@@ -773,6 +991,7 @@ export function BoardView() {
               onTimer={addTimer}
             />
 
+            <InsertMenu onInsert={insertObject} />
             {showInspector ? (
               <Inspector
                 board={board}
@@ -828,6 +1047,34 @@ export function BoardView() {
           />
         ) : null}
 
+        <RoomPanel open={roomOpen} onClose={() => setRoomOpen(false)} />
+        <MediaOverlay />
+        {voiceOpen ? (
+          <VoiceRecorder
+            author={useLienzo.getState().userName}
+            onCancel={() => setVoiceOpen(false)}
+            onSaved={(note) => {
+              const state = useLienzo.getState();
+              const point =
+                voicePointRef.current ??
+                screenToWorld(
+                  { x: state.stageSize.w / 2, y: state.stageSize.h / 2 },
+                  state.viewport,
+                );
+              const item = newFile(point, {
+                fileId: note.fileId,
+                name: `Nota de voz · ${formatDuration(note.duration)}`,
+                mime: note.mime,
+                size: 0,
+                kind: 'audio',
+              });
+              state.addItem({ ...item, voiceNote: note });
+              state.showToast('Nota de voz añadida. Doble clic para escucharla.', 'success');
+              setVoiceOpen(false);
+            }}
+          />
+        ) : null}
+
         {dropActive ? (
           <div className="drop-overlay" aria-hidden="true">
             <ImagePlus size={30} />
@@ -863,6 +1110,17 @@ export function BoardView() {
         ref={fileInputRef}
         type="file"
         multiple
+        className="visually-hidden"
+        onChange={(event) => {
+          const files = Array.from(event.target.files ?? []);
+          event.target.value = '';
+          if (files.length > 0) void addDroppedFiles(files);
+        }}
+      />
+      <input
+        ref={videoInputRef}
+        type="file"
+        accept="video/*"
         className="visually-hidden"
         onChange={(event) => {
           const files = Array.from(event.target.files ?? []);

@@ -1,9 +1,13 @@
 import type {
   Board,
+  ChatMessage,
   CollabStatus,
   Peer,
   Point,
+  ReactionBurst,
   RemoteOp,
+  RoomRole,
+  Viewport,
 } from '../types';
 import { wsUrlFromBase } from './net';
 
@@ -16,6 +20,9 @@ interface CollabOptions {
   onBoard: (board: Board) => void;
   onOps: (ops: RemoteOp[]) => void;
   onCursor: (peerId: string, point: Point) => void;
+  onChat?: (message: ChatMessage) => void;
+  onReaction?: (reaction: ReactionBurst) => void;
+  onViewport?: (viewport: Viewport) => void;
 }
 
 interface ServerMessage {
@@ -28,8 +35,38 @@ interface ServerMessage {
   id?: string;
   x?: number;
   y?: number;
+  zoom?: number;
   message?: string;
   from?: string;
+  role?: RoomRole;
+  emoji?: string;
+  author?: string;
+  authorId?: string;
+  text?: string;
+  at?: number;
+}
+
+function metaDiff(previous: Board, next: Board): Array<RemoteOp> {
+  const meta: Extract<RemoteOp, { kind: 'meta' }> = { kind: 'meta' };
+  if (previous.name !== next.name) meta.name = next.name;
+  if (previous.background !== next.background) meta.background = next.background;
+  const keys = [
+    'pages',
+    'currentPageId',
+    'layers',
+    'noteGrid',
+    'ruler',
+    'veil',
+    'revealedFrames',
+    'pdfPages',
+    'locked',
+  ] as const;
+  for (const key of keys) {
+    if (JSON.stringify(previous[key]) !== JSON.stringify(next[key])) {
+      (meta as Record<string, unknown>)[key] = next[key];
+    }
+  }
+  return Object.keys(meta).length > 1 ? [meta] : [];
 }
 
 function diffBoards(previous: Board, next: Board): RemoteOp[] {
@@ -45,13 +82,7 @@ function diffBoards(previous: Board, next: Board): RemoteOp[] {
   for (const id of previousItems.keys()) {
     if (!nextIds.has(id)) ops.push({ kind: 'delete', id });
   }
-  if (previous.name !== next.name || previous.background !== next.background) {
-    ops.push({
-      kind: 'meta',
-      name: next.name,
-      background: next.background,
-    });
-  }
+  ops.push(...metaDiff(previous, next));
   if (JSON.stringify(previous.comments) !== JSON.stringify(next.comments)) {
     ops.push({ kind: 'comments', comments: next.comments });
   }
@@ -63,6 +94,7 @@ function applyOpsToBoard(board: Board, ops: RemoteOp[]): Board {
   let comments = board.comments;
   let name = board.name;
   let background = board.background;
+  let meta: Partial<Board> = {};
   for (const op of ops) {
     if (op.kind === 'upsert') {
       const index = items.findIndex((item) => item.id === op.item.id);
@@ -78,13 +110,20 @@ function applyOpsToBoard(board: Board, ops: RemoteOp[]): Board {
           ),
       );
     } else if (op.kind === 'meta') {
-      if (op.name) name = op.name;
-      if (op.background) background = op.background;
+      const {
+        kind: _kind,
+        name: nextName,
+        background: nextBackground,
+        ...rest
+      } = op;
+      if (nextName) name = nextName;
+      if (nextBackground) background = nextBackground;
+      meta = { ...meta, ...rest };
     } else if (op.kind === 'comments') {
       comments = op.comments;
     }
   }
-  return { ...board, items, comments, name, background };
+  return { ...board, ...meta, items, comments, name, background };
 }
 
 export class CollabClient {
@@ -224,6 +263,42 @@ export class CollabClient {
         }
         break;
       }
+      case 'chat': {
+        if (typeof message.text === 'string' && message.text.trim()) {
+          this.options.onChat?.({
+            id: message.id ?? `chat-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            author: message.author ?? 'Compañero',
+            authorId: message.authorId ?? message.from ?? 'peer',
+            text: message.text.slice(0, 800),
+            at: typeof message.at === 'number' ? message.at : Date.now(),
+            kind: 'text',
+          });
+        }
+        break;
+      }
+      case 'reaction': {
+        if (typeof message.emoji === 'string') {
+          this.options.onReaction?.({
+            id: message.id ?? `reaction-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            emoji: message.emoji.slice(0, 8),
+            x: typeof message.x === 'number' ? message.x : 0,
+            y: typeof message.y === 'number' ? message.y : 0,
+            at: typeof message.at === 'number' ? message.at : Date.now(),
+            author: message.author ?? 'Compañero',
+          });
+        }
+        break;
+      }
+      case 'viewport': {
+        if (
+          typeof message.x === 'number' &&
+          typeof message.y === 'number' &&
+          typeof message.zoom === 'number'
+        ) {
+          this.options.onViewport?.({ x: message.x, y: message.y, zoom: message.zoom });
+        }
+        break;
+      }
       case 'error': {
         this.options.onStatus('error', message.message ?? 'Error de sala.');
         break;
@@ -284,6 +359,22 @@ export class CollabClient {
   updateProfile(name: string, color: string): void {
     this.options.user = { ...this.options.user, name, color };
     this.send({ type: 'profile', name, color });
+  }
+
+  sendChat(text: string): void {
+    this.send({ type: 'chat', text });
+  }
+
+  sendReaction(emoji: string, x: number, y: number): void {
+    this.send({ type: 'reaction', emoji, x, y });
+  }
+
+  setRole(role: RoomRole): void {
+    this.send({ type: 'role', role });
+  }
+
+  shareViewport(viewport: Viewport): void {
+    this.send({ type: 'viewport', x: viewport.x, y: viewport.y, zoom: viewport.zoom });
   }
 
   private startHeartbeat(): void {

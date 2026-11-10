@@ -98,6 +98,7 @@ function applyOps(board, ops) {
   let comments = [...board.comments];
   let name = board.name;
   let background = board.background;
+  let meta = {};
   for (const op of ops) {
     if (!op || typeof op !== 'object') continue;
     if (op.kind === 'upsert' && op.item && typeof op.item.id === 'string') {
@@ -116,11 +117,24 @@ function applyOps(board, ops) {
     } else if (op.kind === 'meta') {
       if (typeof op.name === 'string' && op.name.trim()) name = op.name;
       if (['dots', 'grid', 'plain'].includes(op.background)) background = op.background;
+      for (const key of [
+        'pages',
+        'currentPageId',
+        'layers',
+        'noteGrid',
+        'ruler',
+        'veil',
+        'revealedFrames',
+        'pdfPages',
+        'locked',
+      ]) {
+        if (key in op) meta[key] = op[key];
+      }
     } else if (op.kind === 'comments' && Array.isArray(op.comments)) {
       comments = op.comments;
     }
   }
-  return { ...board, items, comments, name, background, updatedAt: now() };
+  return { ...board, ...meta, items, comments, name, background, updatedAt: now() };
 }
 
 async function atomicWrite(file, data) {
@@ -450,6 +464,7 @@ export async function startCollabServer({
           id: typeof user.id === 'string' ? user.id.slice(0, 64) : `guest-${now()}`,
           name: typeof user.name === 'string' ? user.name.slice(0, 60) : 'Invitado',
           color: typeof user.color === 'string' ? user.color.slice(0, 24) : '#0E5B4F',
+          role: 'editor',
           boardId,
         };
         room.clients.add(socket);
@@ -483,9 +498,66 @@ export async function startCollabServer({
 
       if (message.type === 'ops') {
         if (!Array.isArray(message.ops)) return;
+        if (socket.meta.role === 'viewer') {
+          send(socket, { type: 'error', message: 'Estás en modo lector; no se envían cambios.' });
+          return;
+        }
         room.board = applyOps(room.board, message.ops);
         broadcast(room, { type: 'ops', ops: message.ops, from: socket.meta.id }, socket);
         persist(room);
+        return;
+      }
+      if (message.type === 'role') {
+        socket.meta.role = message.role === 'viewer' ? 'viewer' : 'editor';
+        send(socket, { type: 'role', role: socket.meta.role });
+        return;
+      }
+      if (message.type === 'chat') {
+        if (typeof message.text !== 'string' || !message.text.trim()) return;
+        broadcast(
+          room,
+          {
+            type: 'chat',
+            id: `chat-${now()}-${Math.random().toString(36).slice(2, 7)}`,
+            text: message.text.slice(0, 800),
+            author: socket.meta.name,
+            authorId: socket.meta.id,
+            at: now(),
+          },
+          socket,
+        );
+        return;
+      }
+      if (message.type === 'reaction') {
+        if (typeof message.emoji !== 'string') return;
+        broadcast(
+          room,
+          {
+            type: 'reaction',
+            id: `reaction-${now()}-${Math.random().toString(36).slice(2, 7)}`,
+            emoji: message.emoji.slice(0, 8),
+            x: typeof message.x === 'number' ? message.x : 0,
+            y: typeof message.y === 'number' ? message.y : 0,
+            author: socket.meta.name,
+            at: now(),
+          },
+          socket,
+        );
+        return;
+      }
+      if (message.type === 'viewport') {
+        if (
+          typeof message.x !== 'number' ||
+          typeof message.y !== 'number' ||
+          typeof message.zoom !== 'number'
+        ) {
+          return;
+        }
+        broadcast(
+          room,
+          { type: 'viewport', x: message.x, y: message.y, zoom: message.zoom, from: socket.meta.id },
+          socket,
+        );
         return;
       }
       if (message.type === 'cursor') {

@@ -313,6 +313,22 @@ export function CommandPalette() {
         useLienzo.getState().openBoard(candidate.id);
       },
     })),
+    ...(board
+      ? board.items
+          .filter((item) => item.type === 'frame')
+          .slice(0, 12)
+          .map<CommandAction>((item) => ({
+            id: `portal-${item.id}`,
+            label: item.type === 'frame' ? item.title : 'Marco',
+            hint: 'Portal a un marco',
+            icon: <ArrowUpRight size={17} />,
+            group: 'Portales',
+            run: () => {
+              close();
+              useLienzo.getState().zoomToFrame(item.id);
+            },
+          }))
+      : []),
   ];
   if (board) {
     actions.push(

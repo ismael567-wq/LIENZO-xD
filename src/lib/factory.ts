@@ -204,6 +204,7 @@ export interface NewFileOptions {
   preview?: string;
   text?: string;
   pages?: number;
+  url?: string;
 }
 
 export function newFile(point: Point, options: NewFileOptions): FileItem {
@@ -223,6 +224,7 @@ export function newFile(point: Point, options: NewFileOptions): FileItem {
     kind: options.kind ?? 'file',
     preview: options.preview,
     text: options.text,
+    url: options.url,
     page: options.pages ? 1 : undefined,
     pages: options.pages,
     updatedAt: now(),

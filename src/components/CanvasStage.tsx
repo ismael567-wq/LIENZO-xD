@@ -1082,6 +1082,19 @@ export function CanvasStage({
     const world = getWorldPoint(getScreenPoint(event));
     const hit = hitTest(board.items, world, viewport.zoom);
     if (hit) {
+      if (hit.linkTo) {
+        const state = useLienzo.getState();
+        const target = state.boards
+          .flatMap((candidate) => candidate.items)
+          .find((item) => item.id === hit.linkTo && item.type === 'frame');
+        if (target) {
+          state.select([target.id]);
+          state.zoomToFrame(target.id);
+        } else {
+          state.openBoard(hit.linkTo);
+        }
+        return;
+      }
       if (hit.type === 'frame') {
         useLienzo.getState().select([hit.id]);
         return;
@@ -1107,6 +1120,10 @@ export function CanvasStage({
       }
       if (hit.type === 'file') {
         const state = useLienzo.getState();
+        if (hit.kind === 'pdf' || hit.kind === 'video' || hit.kind === 'audio') {
+          state.openMedia(hit.id);
+          return;
+        }
         void (async () => {
           try {
             const blob = await ensureLocalFile(
@@ -1124,6 +1141,10 @@ export function CanvasStage({
             );
           }
         })();
+        return;
+      }
+      if (hit.type === 'flashcard') {
+        useLienzo.getState().flipFlashcard(hit.id);
         return;
       }
       if ('text' in hit) {

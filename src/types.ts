@@ -304,6 +304,26 @@ export interface CommentPin {
   audio?: VoiceNote;
 }
 
+export type RoomRole = 'editor' | 'viewer';
+
+export interface ChatMessage {
+  id: string;
+  author: string;
+  authorId: string;
+  text: string;
+  at: number;
+  kind?: 'text' | 'system';
+}
+
+export interface ReactionBurst {
+  id: string;
+  emoji: string;
+  x: number;
+  y: number;
+  at: number;
+  author: string;
+}
+
 export interface Board {
   id: string;
   name: string;
@@ -328,6 +348,8 @@ export interface Board {
   layers?: BoardLayer[];
   /** Rejilla invisible para alinear notas. */
   noteGrid?: boolean;
+  /** Regla y ejes visibles alrededor del lienzo. */
+  ruler?: boolean;
   /** Velo de aula: oculta marcos no revelados. */
   veil?: boolean;
   /** Marcos revelados del velo. */
@@ -364,6 +386,12 @@ export interface CollabState {
   selfColor: string;
   localServerUrl: string | null;
   lanUrls: string[];
+  /** Rol del usuario en la sala: los lectores no envían cambios. */
+  role: RoomRole;
+  chat: ChatMessage[];
+  reactions: ReactionBurst[];
+  /** Compañero al que se sigue la cámara. */
+  followId: string | null;
 }
 
 export type SaveStatus = 'saved' | 'saving' | 'dirty';
@@ -388,10 +416,41 @@ export interface ServerInfo {
   version: string;
 }
 
+export type InsertKind =
+  | 'code'
+  | 'markdown'
+  | 'table'
+  | 'sticker'
+  | 'flashcard'
+  | 'mermaid'
+  | 'video'
+  | 'voice';
+
+export interface Piece {
+  id: string;
+  name: string;
+  items: BoardItem[];
+  createdAt: number;
+  updatedAt: number;
+}
+
 export type RemoteOp =
   | { kind: 'upsert'; item: BoardItem }
   | { kind: 'delete'; id: string }
-  | { kind: 'meta'; name?: string; background?: BackgroundKind }
+  | {
+      kind: 'meta';
+      name?: string;
+      background?: BackgroundKind;
+      pages?: BoardPage[];
+      currentPageId?: string;
+      layers?: BoardLayer[];
+      noteGrid?: boolean;
+      ruler?: boolean;
+      veil?: boolean;
+      revealedFrames?: string[];
+      pdfPages?: Record<string, number>;
+      locked?: boolean;
+    }
   | { kind: 'comments'; comments: CommentPin[] };
 
 export type AnyItemPatch = Partial<

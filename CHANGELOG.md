@@ -2,6 +2,41 @@
 
 Todas las versiones relevantes de tiza.
 
+## [1.4.0] — 2026-11-09
+
+Segunda tanda de producto: objetos ricos, aula en vivo, estudio, sala y migración desde otras pizarras. Se mantienen las claves internas de almacenamiento para no romper datos existentes.
+
+### Añadido
+
+- **Objetos ricos**: bloques de código con resaltado, Markdown renderizado, tablas editables, stickers, flashcards con volteo y diagramas Mermaid. Se insertan desde el menú **Insertar** y se editan en línea o desde el inspector.
+- **PDF.js real**: visor paginado dentro del tablero con anotaciones de tinta sobre cada página, miniaturas y navegación.
+- **Vídeo y audio**: reproducción de vídeo local o por URL (YouTube/Vimeo) y notas de voz grabadas con MediaRecorder, guardadas en OPFS/IndexedDB.
+- **Audio en comentarios**: cualquier comentario anclado puede llevar una nota de voz y reproducirse desde el inspector.
+- **Aula y presentación**: barra de páginas, capas con visibilidad y bloqueo, marcos con layout de presentación, velo para ocultar zonas, proyector, reacciones flotantes, rejilla de notas y regla con ejes.
+- **Sala LAN**: roles editor/visor aplicados en cliente y servidor, seguimiento de personas, traer a todos, chat, reacciones, votación por puntos y viewport compartido.
+- **Modo estudio**: repaso de flashcards a pantalla completa con avance y volteo.
+- **Mapa mental en vivo**: con una nota seleccionada, `Tab` crea una nota hija conectada y lista para escribir.
+- **Portales**: enlaza objetos con marcos o tableros; doble clic viaja al destino y `Ctrl+K` lista portales.
+- **Búsqueda difusa** en el tablero y en la paleta de comandos.
+- **Importadores**: Excalidraw, respaldos JAM/Jamboard y texto Mermaid convertidos a objetos nativos.
+- **Exportación Markdown** con la estructura de marcos, notas, tablas, código, comentarios y archivos.
+- **Piezas reutilizables**: guarda una selección como pieza, insértala en cualquier tablero y elimínala cuando ya no la necesites.
+- **Aplanar selección**: convierte una selección en una sola imagen no editable.
+- **Tiza y resaltador**: trazos con textura de tiza, motas de polvo y paleta propia.
+- **Importación rápida de CSV** como tabla nativa y pegado de archivos del portapapeles.
+- **Soporte sin conexión**: aviso de estado y caché de la aplicación.
+
+### Cambiado
+
+- El editor en línea reconoce código, Markdown, tablas, flashcards y títulos de marco.
+- El inspector muestra propiedades específicas por tipo, portal, votos y acciones de archivo.
+- Los conectores y portales respetan las páginas y capas activas.
+- La exportación PDF/SVG y el render del lienzo incluyen los nuevos tipos.
+
+### Verificación
+
+`npm run typecheck`, `npm test` (6 archivos / 33 pruebas), `npm run contraste` (48/48 AA) y `npm run build` pasan sin errores.
+
 ## [1.3.0] — 2026-11-05
 
 Rediseño visual v2 y primera tanda de funciones de producto de los informes.

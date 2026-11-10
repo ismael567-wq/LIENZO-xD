@@ -1,14 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  Boxes,
   Check,
   ChevronDown,
   ChevronLeft,
   CircleDot,
+  Combine,
   Copy,
   Download,
   FileCode2,
+  FileDown,
   FileJson,
   FileText,
+  FileUp,
   Grid3X3,
   History,
   Image as ImageIcon,
@@ -37,7 +41,7 @@ import {
   Wifi,
   WifiOff,
 } from 'lucide-react';
-import type { Board } from '../types';
+import type { Board, ImageItem } from '../types';
 import { useLienzo } from '../store/boardStore';
 import {
   copyBoardPNG,
@@ -47,8 +51,12 @@ import {
   exportBoardSVG,
   exportWorkspace,
   parseWorkspaceFile,
+  renderBoardPNGBlob,
   safeFileName,
 } from '../lib/export';
+import { downloadBoardMarkdown } from '../lib/markdown';
+import { importFromText, type ImportFormat } from '../lib/importers';
+import { boundsOfItems, uid } from '../lib/geometry';
 import { copyToClipboard } from '../lib/net';
 import { hasPendingUpdate, useUpdates } from '../store/updateStore';
 import { initials, Logo } from './Logo';
@@ -122,6 +130,14 @@ export function TopBar({ board }: TopBarProps) {
   const moreRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const workspaceInputRef = useRef<HTMLInputElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const importFormatRef = useRef<ImportFormat>('excalidraw');
+
+  const pieces = useLienzo((state) => state.pieces);
+  const loadPieces = useLienzo((state) => state.loadPieces);
+  const savePiece = useLienzo((state) => state.savePiece);
+  const deletePiece = useLienzo((state) => state.deletePiece);
+  const insertPiece = useLienzo((state) => state.insertPiece);
 
   const saveStatus = useLienzo((state) => state.saveStatus);
   const closeBoard = useLienzo((state) => state.closeBoard);
@@ -152,20 +168,105 @@ export function TopBar({ board }: TopBarProps) {
     setName(board.name);
   }, [board.id, board.name]);
 
+  useEffect(() => {
+    loadPieces();
+  }, [loadPieces]);
+
   const commitName = () => {
     const clean = name.trim();
     if (clean && clean !== board.name) renameBoard(board.id, clean);
     else setName(board.name);
   };
 
+  const handleImportFile = async (file: File) => {
+    try {
+      const items = importFromText(importFormatRef.current, await file.text());
+      if (items.length === 0) {
+        showToast('El archivo no produjo ningún elemento.', 'info');
+        return;
+      }
+      const store = useLienzo.getState();
+      store.pushHistory();
+      for (const item of items) {
+        store.addItem(item, { select: false, history: false });
+      }
+      store.select(items.map((item) => item.id));
+      showToast(
+        `Importados ${items.length} elemento(s) desde ${importFormatRef.current}.`,
+        'success',
+      );
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : 'No se pudo importar el archivo.',
+        'error',
+      );
+    }
+  };
+
+  const handleFlatten = async () => {
+    if (selected.length === 0) {
+      showToast('Selecciona los elementos que quieres aplanar.', 'info');
+      return;
+    }
+    const store = useLienzo.getState();
+    const current = useLienzo.getState().boards.find((candidate) => candidate.id === board.id);
+    if (!current) return;
+    const scoped = current.items.filter((item) => selected.includes(item.id));
+    const bounds = boundsOfItems(scoped);
+    if (!bounds) {
+      showToast('La selección no tiene contenido visible.', 'info');
+      return;
+    }
+    try {
+      const padding = 72;
+      const width = Math.max(200, Math.ceil(bounds.w + padding * 2));
+      const height = Math.max(200, Math.ceil(bounds.h + padding * 2));
+      const blob = await renderBoardPNGBlob(current, {
+        selected,
+        theme,
+        transparent: true,
+        scale: 2,
+      });
+      const src = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+      });
+      const image: ImageItem = {
+        id: uid(9),
+        type: 'image',
+        x: Math.round(bounds.x - padding),
+        y: Math.round(bounds.y - padding),
+        w: width,
+        h: height,
+        src,
+        alt: 'Selección aplanada',
+        radius: 6,
+        updatedAt: Date.now(),
+      };
+      store.deleteSelected();
+      store.addItem(image, { history: false });
+      showToast('Selección aplanada en una sola imagen.', 'success');
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : 'No se pudo aplanar la selección.',
+        'error',
+      );
+    }
+  };
+
   const handleExport = async (
-    kind: 'png' | 'json' | 'selection' | 'copy' | 'pdf' | 'svg' | 'workspace',
+    kind: 'png' | 'json' | 'selection' | 'copy' | 'pdf' | 'svg' | 'workspace' | 'markdown',
   ) => {
     setExportOpen(false);
     try {
       if (kind === 'json') {
         exportBoardJSON(board);
         showToast('Tablero exportado en JSON.', 'success');
+      } else if (kind === 'markdown') {
+        downloadBoardMarkdown(board);
+        showToast('Markdown exportado con la estructura del tablero.', 'success');
       } else if (kind === 'copy') {
         await copyBoardPNG(board, {
           selected: selected.length > 0 ? selected : undefined,
@@ -356,6 +457,11 @@ export function TopBar({ board }: TopBarProps) {
                 <span>SVG vectorial</span>
                 <small>Escalable</small>
               </button>
+              <button type="button" role="menuitem" onClick={() => handleExport('markdown')}>
+                <FileDown size={16} />
+                <span>Markdown estructurado</span>
+                <small>Notas, tablas y código</small>
+              </button>
               <div className="menu-separator" />
               <div className="menu-label">Workspace</div>
               <button type="button" role="menuitem" onClick={() => handleExport('workspace')}>
@@ -375,6 +481,32 @@ export function TopBar({ board }: TopBarProps) {
                 <span>Importar workspace</span>
                 <small>Abre un .tiza</small>
               </button>
+              <div className="menu-label">Importar desde</div>
+              {(
+                [
+                  ['excalidraw', 'Excalidraw', '.excalidraw,.json'],
+                  ['jam', 'JAM / Jamboard', '.jam,.json'],
+                  ['mermaid', 'Mermaid', '.mmd,.mermaid,.txt'],
+                ] as const satisfies ReadonlyArray<readonly [ImportFormat, string, string]>
+              ).map(([format, label, accept]) => (
+                <button
+                  key={format}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setExportOpen(false);
+                    importFormatRef.current = format;
+                    const input = importInputRef.current;
+                    if (input) {
+                      input.accept = accept;
+                      input.click();
+                    }
+                  }}
+                >
+                  <FileUp size={16} />
+                  <span>{label}</span>
+                </button>
+              ))}
               <div className="menu-separator" />
               <button
                 type="button"
@@ -429,6 +561,67 @@ export function TopBar({ board }: TopBarProps) {
                 <Copy size={16} />
                 <span>Duplicar tablero</span>
               </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMoreOpen(false);
+                  const current = useLienzo.getState();
+                  if (current.selected.length === 0) {
+                    showToast('Selecciona elementos para guardar una pieza.', 'info');
+                    return;
+                  }
+                  const pieceName = window.prompt('Nombre de la pieza', 'Pieza sin nombre');
+                  if (pieceName === null) return;
+                  savePiece(pieceName);
+                }}
+              >
+                <Boxes size={16} />
+                <span>Guardar selección como pieza</span>
+                <small>{selected.length > 0 ? `${selected.length} elementos` : 'Sin selección'}</small>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMoreOpen(false);
+                  void handleFlatten();
+                }}
+              >
+                <Combine size={16} />
+                <span>Aplanar selección</span>
+                <small>Convierte en imagen</small>
+              </button>
+              {pieces.length > 0 ? (
+                <>
+                  <div className="menu-label">Piezas guardadas</div>
+                  {pieces.slice(0, 6).map((piece) => (
+                    <div className="piece-row" key={piece.id}>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="piece-insert"
+                        onClick={() => {
+                          setMoreOpen(false);
+                          insertPiece(piece.id);
+                        }}
+                      >
+                        <Boxes size={15} />
+                        <span>{piece.name}</span>
+                        <small>{piece.items.length} elem.</small>
+                      </button>
+                      <button
+                        type="button"
+                        className="piece-delete"
+                        aria-label={`Eliminar pieza ${piece.name}`}
+                        onClick={() => deletePiece(piece.id)}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  ))}
+                </>
+              ) : null}
               <button
                 type="button"
                 role="menuitem"
@@ -629,6 +822,18 @@ export function TopBar({ board }: TopBarProps) {
               'error',
             );
           }
+        }}
+      />
+      <input
+        ref={importInputRef}
+        type="file"
+        accept=".excalidraw,.json,.jam,.mmd,.mermaid,.txt"
+        className="visually-hidden"
+        onChange={async (event) => {
+          const file = event.target.files?.[0];
+          event.target.value = '';
+          if (!file) return;
+          await handleImportFile(file);
         }}
       />
     </header>

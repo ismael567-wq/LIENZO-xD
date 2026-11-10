@@ -1,6 +1,7 @@
 import {
   ArrowUpRight,
   Boxes,
+  Braces,
   Check,
   Circle,
   Copy,
@@ -9,6 +10,7 @@ import {
   ExternalLink,
   FileText,
   Frame,
+  GraduationCap,
   Image as ImageIcon,
   Layers,
   Lock,
@@ -18,8 +20,10 @@ import {
   PenLine,
   Play,
   RotateCcw,
+  Sparkles,
   Square,
   StickyNote,
+  Table2,
   Timer,
   Trash2,
   Type,
@@ -211,6 +215,11 @@ export function Inspector({ board, onClose, onImageReplace, onTemplates }: Inspe
   const isDraw = single?.type === 'draw';
   const isFile = single?.type === 'file';
   const isTimer = single?.type === 'timer';
+  const isCode = single?.type === 'code';
+  const isMarkdown = single?.type === 'markdown';
+  const isTable = single?.type === 'table';
+  const isSticker = single?.type === 'sticker';
+  const isFlashcard = single?.type === 'flashcard';
 
   const commonFill =
     single && 'fill' in single && single.fill
@@ -587,6 +596,220 @@ export function Inspector({ board, onClose, onImageReplace, onTemplates }: Inspe
                     ))}
                   </div>
                 </Section>
+                <Section title="Presentación">
+                  <div className="segmented segmented-wrap">
+                    {(
+                      [
+                        ['blank', 'En blanco'],
+                        ['title', 'Título'],
+                        ['title-content', 'Título + contenido'],
+                        ['two-columns', 'Dos columnas'],
+                      ] as const
+                    ).map(([layout, label]) => (
+                      <button
+                        key={layout}
+                        type="button"
+                        className={(single.layout ?? 'blank') === layout ? 'is-active' : ''}
+                        onClick={() => updateSelected({ layout })}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="toggle-row">
+                    <button
+                      type="button"
+                      className={single.veiled ? 'is-active' : ''}
+                      onClick={() => updateSelected({ veiled: !single.veiled })}
+                    >
+                      Ocultar con el velo
+                    </button>
+                  </div>
+                </Section>
+              </>
+            ) : null}
+
+            {isCode ? (
+              <>
+                <Section title="Código">
+                  <label className="select-field">
+                    <span>Lenguaje</span>
+                    <select
+                      value={single.language}
+                      onChange={(event) => updateSelected({ language: event.target.value })}
+                    >
+                      {['ts', 'js', 'tsx', 'jsx', 'python', 'sql', 'bash', 'json', 'css', 'html', 'mermaid'].map(
+                        (language) => (
+                          <option key={language} value={language}>
+                            {language}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </label>
+                  <label className="range-field">
+                    <span>Tamaño</span>
+                    <input
+                      type="range"
+                      min={10}
+                      max={26}
+                      step={1}
+                      value={single.fontSize}
+                      onChange={(event) => updateSelected({ fontSize: Number(event.target.value) })}
+                    />
+                    <small>{single.fontSize} px</small>
+                  </label>
+                  <button
+                    type="button"
+                    className="btn btn-soft full-width"
+                    onClick={() => useLienzo.getState().startEditing(single.id)}
+                  >
+                    <Braces size={14} /> Editar código
+                  </button>
+                </Section>
+              </>
+            ) : null}
+
+            {isMarkdown ? (
+              <>
+                <Section title="Markdown">
+                  <label className="range-field">
+                    <span>Tamaño</span>
+                    <input
+                      type="range"
+                      min={10}
+                      max={28}
+                      step={1}
+                      value={single.fontSize}
+                      onChange={(event) => updateSelected({ fontSize: Number(event.target.value) })}
+                    />
+                    <small>{single.fontSize} px</small>
+                  </label>
+                  <button
+                    type="button"
+                    className="btn btn-soft full-width"
+                    onClick={() => useLienzo.getState().startEditing(single.id)}
+                  >
+                    <FileText size={14} /> Editar Markdown
+                  </button>
+                  <p className="muted-copy">
+                    Admite títulos, listas, tareas y citas. Se exporta como Markdown real.
+                  </p>
+                </Section>
+              </>
+            ) : null}
+
+            {isTable ? (
+              <>
+                <Section title="Tabla">
+                  <div className="segmented">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateSelected({
+                          rows: [
+                            ...single.rows,
+                            Array.from(
+                              { length: Math.max(1, ...single.rows.map((row) => row.length)) },
+                              () => '',
+                            ),
+                          ],
+                        })
+                      }
+                    >
+                      + Fila
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateSelected({ rows: single.rows.map((row) => [...row, '']) })}
+                    >
+                      + Columna
+                    </button>
+                  </div>
+                  <div className="segmented">
+                    <button
+                      type="button"
+                      className={single.header ? 'is-active' : ''}
+                      onClick={() => updateSelected({ header: !single.header })}
+                    >
+                      Cabecera
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => useLienzo.getState().startEditing(single.id)}
+                    >
+                      <Table2 size={14} /> Editar celdas
+                    </button>
+                  </div>
+                </Section>
+              </>
+            ) : null}
+
+            {isSticker ? (
+              <>
+                <Section title="Sticker">
+                  <div className="sticker-grid">
+                    {['⭐', '✅', '❗', '💡', '🔥', '🎯', '📌', '❤️', '⚡', '🏆', '🧠', '👀'].map(
+                      (symbol) => (
+                        <button
+                          key={symbol}
+                          type="button"
+                          className={single.symbol === symbol ? 'is-active' : ''}
+                          onClick={() => updateSelected({ symbol })}
+                        >
+                          {symbol}
+                        </button>
+                      ),
+                    )}
+                  </div>
+                  <input
+                    className="text-input"
+                    value={single.symbol}
+                    maxLength={8}
+                    onChange={(event) => updateSelected({ symbol: event.target.value })}
+                    aria-label="Símbolo del sticker"
+                  />
+                </Section>
+              </>
+            ) : null}
+
+            {isFlashcard ? (
+              <>
+                <Section title="Flashcard">
+                  <label className="field-label">
+                    <span>Pregunta</span>
+                    <textarea
+                      className="text-input"
+                      rows={2}
+                      value={single.front}
+                      onChange={(event) => updateSelected({ front: event.target.value })}
+                    />
+                  </label>
+                  <label className="field-label">
+                    <span>Respuesta</span>
+                    <textarea
+                      className="text-input"
+                      rows={2}
+                      value={single.back}
+                      onChange={(event) => updateSelected({ back: event.target.value })}
+                    />
+                  </label>
+                  <div className="segmented">
+                    <button
+                      type="button"
+                      className={single.flipped ? 'is-active' : ''}
+                      onClick={() => useLienzo.getState().flipFlashcard(single.id)}
+                    >
+                      <GraduationCap size={14} /> Voltear
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => useLienzo.getState().startEditing(single.id)}
+                    >
+                      Editar tarjeta
+                    </button>
+                  </div>
+                </Section>
               </>
             ) : null}
 
@@ -733,6 +956,22 @@ export function Inspector({ board, onClose, onImageReplace, onTemplates }: Inspe
                     />
                     <small>{single.strokeWidth} px</small>
                   </label>
+                  <div className="toggle-row">
+                    <button
+                      type="button"
+                      className={single.chalk ? 'is-active' : ''}
+                      onClick={() => updateSelected({ chalk: !single.chalk })}
+                    >
+                      Textura de tiza
+                    </button>
+                    <button
+                      type="button"
+                      className={single.highlighter ? 'is-active' : ''}
+                      onClick={() => updateSelected({ highlighter: !single.highlighter })}
+                    >
+                      Resaltador
+                    </button>
+                  </div>
                 </Section>
               </>
             ) : null}
@@ -765,6 +1004,12 @@ export function Inspector({ board, onClose, onImageReplace, onTemplates }: Inspe
                   {single.pages ? ` · página ${single.page ?? 1}/${single.pages}` : ''}
                 </p>
                 <div className="segmented">
+                  <button
+                    type="button"
+                    onClick={() => useLienzo.getState().openMedia(single.id)}
+                  >
+                    <Play size={14} /> Ver
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
@@ -898,6 +1143,66 @@ export function Inspector({ board, onClose, onImageReplace, onTemplates }: Inspe
                 </Section>
               </>
             ) : null}
+
+            <Section title="Portal y votos">
+              <label className="select-field">
+                <span>Enlazar con</span>
+                <select
+                  value={single.linkTo ?? ''}
+                  onChange={(event) =>
+                    useLienzo.getState().linkSelected(event.target.value || null)
+                  }
+                >
+                  <option value="">Sin portal</option>
+                  <optgroup label="Tableros">
+                    {useLienzo
+                      .getState()
+                      .boards.filter((candidate) => candidate.id !== board.id)
+                      .map((candidate) => (
+                        <option key={candidate.id} value={candidate.id}>
+                          {candidate.name}
+                        </option>
+                      ))}
+                  </optgroup>
+                  <optgroup label="Marcos de este tablero">
+                    {board.items
+                      .filter((candidate) => candidate.type === 'frame' && candidate.id !== single.id)
+                      .map((candidate) => (
+                        <option key={candidate.id} value={candidate.id}>
+                          {candidate.type === 'frame' ? candidate.title : 'Marco'}
+                        </option>
+                      ))}
+                  </optgroup>
+                </select>
+              </label>
+              <p className="muted-copy">
+                Doble clic en el objeto para viajar al destino. Los portales también aparecen al
+                pulsar <kbd>Ctrl K</kbd>.
+              </p>
+              <div className="vote-inspector">
+                <span>
+                  {(single as { votes?: string[] }).votes?.length
+                    ? `${(single as { votes?: string[] }).votes?.length} voto(s) · ${(
+                        single as { votes?: string[] }
+                      ).votes?.join(', ')}`
+                    : 'Sin votos todavía'}
+                </span>
+                <div className="segmented">
+                  <button
+                    type="button"
+                    onClick={() => useLienzo.getState().addVote(single.id)}
+                  >
+                    Votar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => useLienzo.getState().clearVotes(single.id)}
+                  >
+                    Limpiar
+                  </button>
+                </div>
+              </div>
+            </Section>
 
             <Section title="Posición y tamaño">
               <div className="number-grid">
@@ -1098,6 +1403,24 @@ export function Inspector({ board, onClose, onImageReplace, onTemplates }: Inspe
                         </small>
                       </div>
                       <div className="comment-actions">
+                        {comment.audio ? (
+                          <button
+                            type="button"
+                            title="Reproducir nota de voz"
+                            onClick={() => {
+                              void openStoredFile(comment.audio!.fileId).catch((error) =>
+                                showToast(
+                                  error instanceof Error
+                                    ? error.message
+                                    : 'No se pudo abrir la nota de voz.',
+                                  'error',
+                                ),
+                              );
+                            }}
+                          >
+                            <Play size={13} />
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           title={comment.resolved ? 'Reabrir' : 'Resolver'}

@@ -189,22 +189,37 @@ Los informes suman **90 ideas** agrupadas en 9 familias y repartidas en cuatro h
 | Horizonte | Ideas | Implementadas | Estado |
 |---|---:|---:|---|
 | v1.3 | 13 | 13 | Completado |
-| v1.4 | 42 | 0 | Pendiente |
-| v2.0 | 31 | 0 | Pendiente |
+| v1.4 | 42 | 42 | Completado |
+| v2.0 | 31 | 0 | En curso |
 | v2.0+ | 4 | 0 | Pendiente |
 
 Pendientes destacados que no deben darse por hechos:
 
-- Notas de **voz** y **vídeo**.
-- **Flashcards** y repaso espaciado.
-- Resto de ideas de las familias v1.4, v2.0 y v2.0+.
+- Las 31 ideas de la fase v2.0 y las 4 de v2.0+ (grabación de pantalla, webcam, embeds, gráficos, replay, duelos, accesibilidad avanzada, MCP y plugins).
 - Sincronización CRDT, cuentas opcionales y colaboración fuera de la LAN.
 - Asociación de archivos `.tiza` a nivel de sistema operativo: la importación funciona desde el menú y el selector de archivos, pero no hay registro de tipo de archivo en Windows/macOS.
 
-La razón de no abordarlas aún es de foco: primero se consolida una identidad coherente y un núcleo de productividad probado. Añadir las 77 ideas restantes sin producto validado habría producido una alpha más ancha, no mejor.
-
 ## 9. Siguiente prioridad recomendada
 
-1. Familia v1.4: notas de voz, flashcards y repaso espaciado.
-2. Familia v2.0: colaboración avanzada y automatizaciones.
+1. Fase v2.0: aula avanzada, replay, gráficos, automatizaciones y accesibilidad.
+2. Fase v2.0+: servidor MCP de la sala, sistema de plugins y Make Real local.
 3. CRDT y cuentas opcionales: solo cuando haya validación de uso real.
+
+## 10. Entrega v1.4
+
+La fase v1.4 está implementada y verificada. Añade:
+
+- **Objetos ricos**: código, Markdown, tablas, stickers, flashcards y Mermaid.
+- **PDF.js** con anotación por página; vídeo local/URL y audio.
+- **Notas de voz** en objetos y comentarios.
+- **Aula**: páginas, capas, marcos con layout, velo, proyector, regla, rejilla y reacciones.
+- **Sala**: roles editor/visor, seguimiento, chat, votación, traer a todos y viewport compartido.
+- **Estudio**: repaso de flashcards a pantalla completa.
+- **Mapa mental**: `Tab` crea hijos conectados; búsqueda difusa en tablero y paleta.
+- **Portales** entre objetos, marcos y tableros.
+- **Importadores** Excalidraw, JAM y Mermaid; exportación Markdown.
+- **Piezas reutilizables**, aplanado de selección y trazos de tiza/resaltador.
+- **CSV a tabla** y pegado de archivos del portapapeles.
+
+Verificación: `npm run typecheck`, `npm test` (33 pruebas), `npm run contraste` (48/48) y `npm run build`, además de QA en navegador sobre el tablero de bienvenida.
+

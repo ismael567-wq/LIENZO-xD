@@ -9,7 +9,7 @@ interface TextEditorProps {
   viewport: { x: number; y: number; zoom: number };
 }
 
-type TextualItem = Extract<BoardItem, { type: 'sticky' | 'text' | 'shape' }>;
+type TextualItem = Extract<BoardItem, { type: 'sticky' | 'text' | 'shape' | 'code' | 'markdown' }>;
 
 export function TextEditor({ board, viewport }: TextEditorProps) {
   const editingId = useLienzo((state) => state.editingId);
@@ -19,7 +19,19 @@ export function TextEditor({ board, viewport }: TextEditorProps) {
   if (item.type === 'frame') {
     return <FrameTitleEditor item={item} viewport={viewport} />;
   }
-  if (item.type !== 'sticky' && item.type !== 'text' && item.type !== 'shape') {
+  if (item.type === 'table') {
+    return <TableEditor item={item} viewport={viewport} />;
+  }
+  if (item.type === 'flashcard') {
+    return <FlashcardEditor item={item} viewport={viewport} />;
+  }
+  if (
+    item.type !== 'sticky' &&
+    item.type !== 'text' &&
+    item.type !== 'shape' &&
+    item.type !== 'code' &&
+    item.type !== 'markdown'
+  ) {
     return null;
   }
   return <BodyTextEditor item={item} viewport={viewport} />;
@@ -36,6 +48,7 @@ function BodyTextEditor({
   const committedRef = useRef(false);
   const zoom = viewport.zoom;
   const screen = worldToScreen({ x: item.x, y: item.y }, viewport);
+  const theme = useLienzo((state) => state.theme);
 
   useEffect(() => {
     committedRef.current = false;
@@ -84,42 +97,66 @@ function BodyTextEditor({
 
   const isSticky = item.type === 'sticky';
   const isShape = item.type === 'shape';
+  const isCode = item.type === 'code';
+  const isMarkdown = item.type === 'markdown';
   const padding = isSticky
     ? Math.max(12, Math.min(20, item.w * 0.1)) * zoom
-    : 18 * zoom;
+    : isCode
+      ? 14 * zoom
+      : 18 * zoom;
   const fontFamily =
-    item.type === 'text'
-      ? item.fontFamily === 'serif'
-        ? FONT_DISPLAY
-        : item.fontFamily === 'mono'
-          ? FONT_MONO
-          : FONT_UI
-      : FONT_UI;
+    isCode
+      ? FONT_MONO
+      : item.type === 'text'
+        ? item.fontFamily === 'serif'
+          ? FONT_DISPLAY
+          : item.fontFamily === 'mono'
+            ? FONT_MONO
+            : FONT_UI
+        : FONT_UI;
   const fontStyle = item.type === 'text' && item.italic ? 'italic' : 'normal';
-  const theme = useLienzo((state) => state.theme);
   const color =
     item.type === 'sticky'
       ? item.textColor
       : item.type === 'shape'
         ? item.textColor
-        : readableInk(item.color, theme);
+        : isCode
+          ? theme === 'dark'
+            ? '#F3F0E8'
+            : '#16211E'
+          : item.type === 'markdown'
+            ? theme === 'dark'
+              ? '#F3F0E8'
+              : '#16211E'
+            : readableInk(item.color, theme);
+  const background = isCode
+    ? theme === 'dark'
+      ? '#151A18'
+      : '#F7F5EF'
+    : isMarkdown
+      ? theme === 'dark'
+        ? '#1B211E'
+        : '#FFFDF7'
+      : undefined;
 
   return (
     <div
-      className={`text-editor-overlay ${isShape ? 'is-shape' : ''} ${isSticky ? 'is-sticky' : ''}`}
+      className={`text-editor-overlay ${isShape ? 'is-shape' : ''} ${isSticky ? 'is-sticky' : ''
+        } ${isCode ? 'is-code' : ''} ${isMarkdown ? 'is-markdown' : ''}`}
       style={{
         left: screen.x,
         top: screen.y,
         width: item.w * zoom,
-        height: isSticky || isShape ? item.h * zoom : 'auto',
+        height: isSticky || isShape || isCode || isMarkdown ? item.h * zoom : 'auto',
         minHeight: item.h * zoom,
         padding,
         fontSize: item.fontSize * zoom,
-        lineHeight: 1.35,
+        lineHeight: isCode ? 1.5 : 1.35,
         fontFamily,
         fontStyle,
-        fontWeight: item.type === 'text' ? item.fontWeight : 500,
+        fontWeight: item.type === 'text' ? item.fontWeight : isCode ? 400 : 500,
         color,
+        background,
         textAlign: isShape ? 'center' : item.type === 'text' ? item.align : 'left',
       }}
       onPointerDown={(event) => event.stopPropagation()}
@@ -145,6 +182,134 @@ function BodyTextEditor({
           }
         }}
       />
+    </div>
+  );
+}
+
+function TableEditor({
+  item,
+  viewport,
+}: {
+  item: Extract<BoardItem, { type: 'table' }>;
+  viewport: { x: number; y: number; zoom: number };
+}) {
+  const zoom = viewport.zoom;
+  const screen = worldToScreen({ x: item.x, y: item.y }, viewport);
+  const rows = item.rows.length > 0 ? item.rows : [['']];
+  const columns = Math.max(1, ...rows.map((row) => row.length));
+
+  const setCell = (rowIndex: number, columnIndex: number, value: string) => {
+    const state = useLienzo.getState();
+    const board = state.boards.find((board) => board.id === state.boardId);
+    const current = board?.items.find((candidate) => candidate.id === item.id);
+    if (!current || current.type !== 'table') return;
+    const next = current.rows.map((row, r) =>
+      r === rowIndex
+        ? Array.from({ length: Math.max(row.length, columns) }, (_, c) =>
+            c === columnIndex ? value : row[c] ?? '',
+          )
+        : row,
+    );
+    state.updateItem(item.id, { rows: next });
+  };
+
+  return (
+    <div
+      className="table-editor"
+      style={{
+        left: screen.x,
+        top: screen.y,
+        width: item.w * zoom,
+        height: item.h * zoom,
+        fontSize: item.fontSize * zoom,
+      }}
+      onPointerDown={(event) => event.stopPropagation()}
+    >
+      <div
+        className="table-editor-grid"
+        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+      >
+        {Array.from({ length: rows.length }, (_, rowIndex) =>
+          Array.from({ length: columns }, (_, columnIndex) => (
+            <input
+              key={`${rowIndex}-${columnIndex}`}
+              value={rows[rowIndex]?.[columnIndex] ?? ''}
+              className={rowIndex === 0 && item.header ? 'is-header' : ''}
+              onChange={(event) => setCell(rowIndex, columnIndex, event.target.value)}
+              onPointerDown={(event) => event.stopPropagation()}
+              onKeyDown={(event) => {
+                event.stopPropagation();
+                if (event.key === 'Escape') {
+                  event.preventDefault();
+                  useLienzo.getState().finishEditing();
+                }
+              }}
+            />
+          )),
+        )}
+      </div>
+      <p className="table-editor-hint">Tab para moverte entre celdas · Esc para terminar</p>
+    </div>
+  );
+}
+
+function FlashcardEditor({
+  item,
+  viewport,
+}: {
+  item: Extract<BoardItem, { type: 'flashcard' }>;
+  viewport: { x: number; y: number; zoom: number };
+}) {
+  const zoom = viewport.zoom;
+  const screen = worldToScreen({ x: item.x, y: item.y }, viewport);
+  const state = useLienzo.getState();
+
+  return (
+    <div
+      className="flashcard-editor"
+      style={{
+        left: screen.x,
+        top: screen.y,
+        width: item.w * zoom,
+        height: item.h * zoom,
+        fontSize: item.fontSize * zoom,
+      }}
+      onPointerDown={(event) => event.stopPropagation()}
+    >
+      <label>
+        <span>Pregunta</span>
+        <textarea
+          autoFocus
+          value={item.front}
+          onChange={(event) => state.updateItem(item.id, { front: event.target.value })}
+          onPointerDown={(event) => event.stopPropagation()}
+          onKeyDown={(event) => {
+            event.stopPropagation();
+            if (event.key === 'Escape') useLienzo.getState().finishEditing();
+          }}
+          rows={3}
+        />
+      </label>
+      <label>
+        <span>Respuesta</span>
+        <textarea
+          value={item.back}
+          onChange={(event) => state.updateItem(item.id, { back: event.target.value })}
+          onPointerDown={(event) => event.stopPropagation()}
+          onKeyDown={(event) => {
+            event.stopPropagation();
+            if (event.key === 'Escape') useLienzo.getState().finishEditing();
+          }}
+          rows={3}
+        />
+      </label>
+      <button
+        type="button"
+        className="btn btn-primary btn-sm"
+        onClick={() => useLienzo.getState().finishEditing()}
+      >
+        Listo
+      </button>
     </div>
   );
 }

@@ -32,6 +32,7 @@
     "cap:ios": "npm run build && cap sync ios && cap open ios"
   },
   "dependencies": {
+    "pdfjs-dist": "^4.10.38",
     "ws": "^8.22.1"
   },
   "devDependencies": {

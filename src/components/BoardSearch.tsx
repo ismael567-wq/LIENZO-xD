@@ -3,6 +3,7 @@ import { CornerDownLeft, Search, X } from 'lucide-react';
 import type { BoardItem } from '../types';
 import { currentBoardOf, useLienzo } from '../store/boardStore';
 import { itemRect } from '../lib/geometry';
+import { fuzzyFilter } from '../lib/fuzzy';
 
 const TYPE_LABEL: Record<BoardItem['type'], string> = {
   sticky: 'Nota',
@@ -74,9 +75,7 @@ export function BoardSearch() {
     if (!board) return [];
     const needle = query.trim().toLowerCase();
     if (!needle) return [];
-    return board.items
-      .filter((item) => searchableText(item).toLowerCase().includes(needle))
-      .slice(0, 8);
+    return fuzzyFilter(board.items, needle, (item) => searchableText(item), 8);
   }, [board, query]);
 
   if (!open || !board) return null;

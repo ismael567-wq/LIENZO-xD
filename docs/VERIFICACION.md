@@ -140,6 +140,25 @@ Comprobadas en la app:
 | Carpetas | Crear, mover tablero, filtrar, renombrar y eliminar sin borrar tableros |
 | Papelera | Mover, restaurar y eliminar definitivamente |
 
+## 7. Funciones v1.4
+
+Comprobadas en la app y en ejecución local:
+
+| Función | Prueba |
+|---|---|
+| Objetos ricos | Insertar tabla desde el menú Insertar → editor de celdas e inspector de tabla |
+| Portales | Paleta `Ctrl+K` muestra el grupo **Portales** con marcos del tablero |
+| Búsqueda difusa | Consulta «bienv» devuelve notas de bienvenida en `Ctrl+F` |
+| Aula | Botones Páginas, Capas, Mapa, Velo, Regla, Rejilla, Proyector, Estudio y Reacción presentes |
+| Inspector nuevo | Panel de portal, votos, tabla, flashcard, código, Markdown y sticker |
+| Exportación | Menú Exportar con Markdown estructurado, Excalidraw, JAM y Mermaid |
+| Piezas | Guardar selección, insertar pieza y aplanar selección desde el menú Más |
+| Comentarios de voz | Grabadora accesible desde el compositor de comentarios |
+| Verificación automática | `typecheck`, 33 pruebas, 48/48 contraste y build correctos |
+
+QA de navegador realizada sobre `http://127.0.0.1:5173` con el tablero de bienvenida, sin errores de consola.
+
+
 ## 7. Prueba end-to-end
 
 Script: `scripts/e2e.mjs` (Playwright + Edge headless) contra el build servido en `127.0.0.1:8787`.

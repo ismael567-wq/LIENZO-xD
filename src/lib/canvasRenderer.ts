@@ -1060,6 +1060,34 @@ function drawFrameTitle(
   ctx.restore();
 }
 
+function drawNoteGrid(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  viewport: { x: number; y: number; zoom: number },
+  palette: Palette,
+): void {
+  const spacing = 24 * viewport.zoom;
+  if (spacing < 6) return;
+  ctx.save();
+  ctx.strokeStyle = palette.brand;
+  ctx.globalAlpha = 0.16;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  const offsetX = ((viewport.x % spacing) + spacing) % spacing;
+  const offsetY = ((viewport.y % spacing) + spacing) % spacing;
+  for (let x = offsetX; x < width; x += spacing) {
+    ctx.moveTo(Math.round(x) + 0.5, 0);
+    ctx.lineTo(Math.round(x) + 0.5, height);
+  }
+  for (let y = offsetY; y < height; y += spacing) {
+    ctx.moveTo(0, Math.round(y) + 0.5);
+    ctx.lineTo(width, Math.round(y) + 0.5);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawFramePattern(
   ctx: CanvasRenderingContext2D,
   item: FrameItem,
@@ -1480,6 +1508,9 @@ export function renderBoard(
         palette,
         board.gridSize ?? 24,
       );
+      if (board.noteGrid) {
+        drawNoteGrid(ctx, width, height, viewport, palette);
+      }
     }
   }
   const layerHidden = new Set(
