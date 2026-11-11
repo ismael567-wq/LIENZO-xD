@@ -24,7 +24,7 @@ export type ConnectorLineType = 'straight' | 'elbow' | 'curve';
 export type ConnectorCap = 'none' | 'arrow' | 'dot' | 'crowfoot' | 'crowfoot-many';
 export type AnchorSide = 'top' | 'right' | 'bottom' | 'left';
 export type FrameBackground = 'plain' | 'dots' | 'grid' | 'lines' | 'music' | 'axes';
-export type FontFamily = 'sans' | 'serif' | 'mono';
+export type FontFamily = 'sans' | 'serif' | 'mono' | 'hand';
 export type TemplateId =
   | 'blank'
   | 'welcome'
@@ -356,6 +356,8 @@ export interface Board {
   revealedFrames?: string[];
   /** Página visible por PDF para anclar trazos. */
   pdfPages?: Record<string, number>;
+  /** Textura decorativa del fondo, además de la cuadrícula. */
+  texture?: 'none' | 'paper' | 'canvas' | 'chalkboard';
 }
 
 export interface HistorySnapshot {
@@ -450,6 +452,7 @@ export type RemoteOp =
       revealedFrames?: string[];
       pdfPages?: Record<string, number>;
       locked?: boolean;
+      texture?: 'none' | 'paper' | 'canvas' | 'chalkboard';
     }
   | { kind: 'comments'; comments: CommentPin[] };
 

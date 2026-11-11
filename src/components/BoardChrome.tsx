@@ -19,6 +19,7 @@ import {
   WifiOff,
   X,
   GraduationCap,
+  Beaker,
 } from 'lucide-react';
 import type { Board } from '../types';
 import { useLienzo } from '../store/boardStore';
@@ -29,7 +30,15 @@ type Panel = 'pages' | 'layers' | 'frames' | 'reactions' | null;
 
 const EMOJIS = ['👏', '🎉', '❤️', '💡', '🙌', '🔥'];
 
-export function BoardChrome({ board, onRoom }: { board: Board; onRoom: () => void }) {
+export function BoardChrome({
+  board,
+  onRoom,
+  onLab,
+}: {
+  board: Board;
+  onRoom: () => void;
+  onLab: () => void;
+}) {
   const [panel, setPanel] = useState<Panel>(null);
   const pages = board.pages ?? [];
   const currentPageId = board.currentPageId ?? pages[0]?.id;
@@ -222,6 +231,10 @@ export function BoardChrome({ board, onRoom }: { board: Board; onRoom: () => voi
           <MessageCircle size={16} />
           <span>Sala</span>
           {role === 'viewer' ? <em className="role-dot" title="Modo lector" /> : null}
+        </button>
+        <button type="button" onClick={onLab} title="Laboratorio v2.0">
+          <Beaker size={16} />
+          <span>Lab</span>
         </button>
       </div>
 

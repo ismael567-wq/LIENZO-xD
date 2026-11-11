@@ -25,7 +25,7 @@ function context(): AudioContext | null {
 }
 
 /** Sonidos breves generados en el cliente; sin archivos ni red. */
-export function playSound(kind: SoundKind = 'tap'): void {
+export function playSound(kind: SoundKind = 'tap', pan = 0): void {
   const audio = context();
   if (!audio) return;
   const now = audio.currentTime;
@@ -43,7 +43,15 @@ export function playSound(kind: SoundKind = 'tap'): void {
     gain.gain.setValueAtTime(0.0001, now);
     gain.gain.exponentialRampToValueAtTime(peak, now + 0.015);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-    gain.connect(audio.destination);
+    const panner =
+      typeof audio.createStereoPanner === 'function' ? audio.createStereoPanner() : null;
+    if (panner) {
+      panner.pan.setValueAtTime(Math.max(-1, Math.min(1, pan)), now);
+      panner.connect(audio.destination);
+      gain.connect(panner);
+    } else {
+      gain.connect(audio.destination);
+    }
     frequencies.forEach((frequency, index) => {
       const oscillator = audio.createOscillator();
       oscillator.type = type;

@@ -157,6 +157,7 @@ interface LienzoState {
   focusRect: (rect: Rect, padding?: number, maxZoom?: number) => void;
   setSnapToGrid: (value: boolean) => void;
   setBackground: (background: Board['background']) => void;
+  setTexture: (texture: Board['texture']) => void;
   toggleBoardLock: () => void;
   restoreSnapshot: (snapshot: HistorySnapshot, label: string) => void;
   setTheme: (theme: Theme) => void;
@@ -895,6 +896,10 @@ export const useLienzo = create<LienzoState>()((set, get) => {
 
     setBackground: (background) => {
       mutateBoard((board) => ({ ...board, background }), { history: true });
+    },
+
+    setTexture: (texture) => {
+      mutateBoard((board) => ({ ...board, texture }), { history: true });
     },
 
     toggleBoardLock: () => {

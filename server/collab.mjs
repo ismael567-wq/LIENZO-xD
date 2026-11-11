@@ -127,6 +127,7 @@ function applyOps(board, ops) {
         'revealedFrames',
         'pdfPages',
         'locked',
+        'texture',
       ]) {
         if (key in op) meta[key] = op[key];
       }

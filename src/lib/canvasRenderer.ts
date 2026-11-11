@@ -154,11 +154,17 @@ function roundRect(
 function fontString(
   size: number,
   weight: number | string = 400,
-  family: 'sans' | 'serif' | 'mono' = 'sans',
+  family: 'sans' | 'serif' | 'mono' | 'hand' = 'sans',
   italic = false,
 ): string {
   const stack =
-    family === 'serif' ? FONT_DISPLAY : family === 'mono' ? FONT_MONO : FONT_UI;
+    family === 'serif'
+      ? FONT_DISPLAY
+      : family === 'mono'
+        ? FONT_MONO
+        : family === 'hand'
+          ? '"Segoe Print", "Bradley Hand", "Comic Sans MS", cursive'
+          : FONT_UI;
   return `${italic ? 'italic ' : ''}${weight} ${size}px ${stack}`;
 }
 
@@ -1060,6 +1066,63 @@ function drawFrameTitle(
   ctx.restore();
 }
 
+function drawBoardTexture(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  viewport: { x: number; y: number; zoom: number },
+  texture: Board['texture'],
+  palette: Palette,
+): void {
+  if (!texture || texture === 'none') return;
+  ctx.save();
+  const size = 24 * viewport.zoom;
+  const offsetX = ((viewport.x % size) + size) % size;
+  const offsetY = ((viewport.y % size) + size) % size;
+  if (texture === 'paper') {
+    ctx.strokeStyle = palette.brand;
+    ctx.globalAlpha = 0.05;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let y = offsetY; y < height; y += Math.max(8, size)) {
+      ctx.moveTo(0, Math.round(y) + 0.5);
+      ctx.lineTo(width, Math.round(y) + 0.5);
+    }
+    ctx.stroke();
+  } else if (texture === 'canvas') {
+    ctx.strokeStyle = palette.ink;
+    ctx.globalAlpha = 0.035;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = offsetX; x < width; x += Math.max(6, size / 3)) {
+      ctx.moveTo(Math.round(x) + 0.5, 0);
+      ctx.lineTo(Math.round(x) + 0.5, height);
+    }
+    for (let y = offsetY; y < height; y += Math.max(6, size / 3)) {
+      ctx.moveTo(0, Math.round(y) + 0.5);
+      ctx.lineTo(width, Math.round(y) + 0.5);
+    }
+    ctx.stroke();
+  } else {
+    // Chalkboard: polvo de tiza determinista.
+    ctx.fillStyle = '#FFFFFF';
+    const step = Math.max(12, size);
+    for (let x = offsetX; x < width; x += step) {
+      for (let y = offsetY; y < height; y += step) {
+        const seed = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+        const noise = seed - Math.floor(seed);
+        if (noise > 0.82) {
+          ctx.globalAlpha = 0.05 + noise * 0.12;
+          ctx.beginPath();
+          ctx.arc(x + noise * 6, y + (1 - noise) * 6, 0.8 + noise, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+  }
+  ctx.restore();
+}
+
 function drawNoteGrid(
   ctx: CanvasRenderingContext2D,
   width: number,
@@ -1510,6 +1573,9 @@ export function renderBoard(
       );
       if (board.noteGrid) {
         drawNoteGrid(ctx, width, height, viewport, palette);
+      }
+      if (board.texture && board.texture !== 'none') {
+        drawBoardTexture(ctx, width, height, viewport, board.texture, palette);
       }
     }
   }

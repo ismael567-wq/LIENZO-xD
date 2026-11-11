@@ -60,6 +60,7 @@ function metaDiff(previous: Board, next: Board): Array<RemoteOp> {
     'revealedFrames',
     'pdfPages',
     'locked',
+    'texture',
   ] as const;
   for (const key of keys) {
     if (JSON.stringify(previous[key]) !== JSON.stringify(next[key])) {

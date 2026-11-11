@@ -24,6 +24,7 @@ import { InsertMenu } from './InsertMenu';
 import { MediaOverlay } from './MediaOverlay';
 import { BoardChrome } from './BoardChrome';
 import { RoomPanel } from './RoomPanel';
+import { V2Tools } from './V2Tools';
 import { VoiceRecorder } from './VoiceRecorder';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import {
@@ -285,6 +286,7 @@ export function BoardView() {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [dropActive, setDropActive] = useState(false);
   const [roomOpen, setRoomOpen] = useState(false);
+  const [labOpen, setLabOpen] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -880,7 +882,15 @@ export function BoardView() {
         <TextEditor board={board} viewport={viewport} />
 
         {!presentation ? (
-          <BoardChrome board={board} onRoom={() => setRoomOpen((value) => !value)} />
+          <BoardChrome
+            board={board}
+            onRoom={() => setRoomOpen((value) => !value)}
+            onLab={() => setLabOpen((value) => !value)}
+          />
+        ) : null}
+
+        {labOpen && !presentation ? (
+          <V2Tools board={board} onClose={() => setLabOpen(false)} />
         ) : null}
 
         {board.ruler && !presentation ? (
