@@ -1,6 +1,6 @@
 # Verificación del proyecto
 
-> Resultados de las comprobaciones ejecutadas durante la iteración `1.3.0`. Fecha: noviembre de 2026.
+> Resultados de las comprobaciones ejecutadas durante la iteración `2.0.0`. Fecha: noviembre de 2026.
 
 ## 1. Entorno
 
@@ -77,11 +77,11 @@ npm run build
 Resultado:
 
 ```text
-✓ 2124 modules transformed
-dist/assets/index-*.css     88.98 kB │ gzip: 18.87 kB
-dist/assets/index-*.js     491.10 kB │ gzip: 150.48 kB
+✓ 2143 modules transformed
+dist/assets/index-*.css    115.16 kB │ gzip:  23.18 kB
+dist/assets/index-*.js     644.00 kB │ gzip: 196.99 kB
 PWA v2.0.0 · generateSW
-precache 31 entries (985.46 KiB)
+precache 33 entries (1483.11 KiB)
 dist/sw.js
 dist/manifest.webmanifest
 ```
@@ -220,13 +220,13 @@ El manifest usa `#1E1C19` como color de tema y de fondo.
 
 ## 9. Escritorio (Electron)
 
-La app de escritorio sigue usando el mismo build web y el servidor embebido. En esta iteración se verificó el build de producción y la app web servida en `8787`; **no se regeneraron los instaladores 1.3.0** en esta sesión.
+La app de escritorio sigue usando el mismo build web y el servidor embebido. En esta iteración se verificó el build de producción y la app web servida en `8787`; **no se regeneraron los instaladores 2.0.0** en esta sesión.
 
 Para generarlos:
 
 ```bash
-npm run desktop:installer   # release/tiza-Setup-1.3.0.exe
-npm run desktop:portable    # release/tiza-1.3.0-portable.exe
+npm run desktop:installer   # release/tiza-Setup-2.0.0.exe
+npm run desktop:portable    # release/tiza-2.0.0-portable.exe
 ```
 
 Los instaladores no están firmados; SmartScreen puede pedir confirmación. Los datos de versiones anteriores se conservan porque las claves internas (`lienzo:*`) no cambian.
@@ -246,4 +246,26 @@ Los instaladores no están firmados; SmartScreen puede pedir confirmación. Los 
 - No se regeneraron los artefactos NSIS/portable de escritorio.
 - No se hizo auditoría completa con lector de pantalla sobre el canvas.
 - La asociación de archivos `.tiza` con el sistema operativo no está registrada; la importación funciona desde el menú y el selector de archivos.
-- Las 77 ideas restantes de los informes (v1.4, v2.0 y v2.0+) no están implementadas ni verificadas; el alcance está en [`TIZA-V2.md`](TIZA-V2.md).
+- Las funciones v2.0 dependientes de permisos (captura de pantalla, webcam y dictado) se revisaron en el navegador, pero no se probaron en todos los sistemas operativos.
+- La traducción completa de la interfaz y el Make Real con visión artificial quedan fuera de esta entrega; el alcance está en [`TIZA-V2.md`](TIZA-V2.md).
+
+## 12. Funciones v2.0
+
+Comprobadas en `http://127.0.0.1:5173` sobre un tablero de QA, sin errores de consola:
+
+| Función | Prueba |
+|---|---|
+| Laboratorio | El dock abre el panel con 33 herramientas agrupadas y el botón **Lab** |
+| Office | CSV → 2 objetos (título y tabla); DOCX → 2 objetos (marco y texto); PPTX de 2 diapositivas → 4 objetos |
+| Plugins | Instalar el ejemplo `retro-kit`, listar y **insertar** en el lienzo con toast de confirmación |
+| i18n | Cambio ES/EN del laboratorio y cabecera; catálogo comunitario de 2 claves instalado y re-render forzado |
+| Votación QR | Tres opciones crean marcos y notas votables; QR PNG generado y resultados a 0 votos |
+| Modo examen | 4 hojas creadas, presentación activa y pizarra bloqueada al salir; desbloqueo y deshacer correctos |
+| Doc ↔ pizarra | Prellenado Markdown desde el tablero, edición y **Aplicar al lienzo** |
+| Replay | 2 fotogramas grabados, filtro por autor y exportación **WebM** de 7.585 bytes |
+| Apariencia | Textura papel activa y ambience de sala; comparador con 2 lienzos |
+| Accesibilidad | Cursor magnético activa `a11y-magnetic` y muestra el anillo; modo de texto grande disponible |
+| MCP | `initialize`, `tools/list`, `tiza_add_sticky` y `tiza_board_text` responden por stdio |
+| Endpoint ops | `POST /api/boards/qaboard123/ops` persiste la nota y `GET` la devuelve |
+
+No se completó una prueba visual de las migas de pan de sub-tableros ni de los permisos individuales de examen; el código compila y las rutas derivadas están cubiertas por tipos.

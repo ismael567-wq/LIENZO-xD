@@ -2,6 +2,55 @@
 
 Todas las versiones relevantes de tiza.
 
+## [2.0.0] – 2026-11-10
+
+Tercera tanda: laboratorio de datos, aula avanzada, replay de sesión, accesibilidad y automatizaciones locales. Se mantienen las claves internas (`useLienzo`, `lienzo:*`) y el modelo de objetos de v1.4.
+
+### Añadido
+
+- **Laboratorio v2**: panel único con 33 herramientas agrupadas en datos, aula, sesión y apariencia.
+- **Gráficos desde datos**: CSV/TSV pegados o importados se convierten en barras, línea o tarta dibujadas en el lienzo.
+- **Office local**: `.docx` se convierte en marcos con párrafos, `.pptx` en marcos por diapositiva y `.csv/.tsv` en tablas editables, todo con `fflate` y sin subir archivos.
+- **Embeds permitidos**: YouTube, Vimeo, Figma, Google Maps, Spotify, Google Docs, Excalidraw, CodePen y SoundCloud como tarjetas nativas.
+- **Plugins JSON declarativos**: instalar, listar, insertar y eliminar plantillas de notas, textos, formas, marcos y stickers sin ejecutar código.
+- **Wireframes**: kits de navegador, móvil, landing y panel insertados como objetos nativos.
+- **Kanban vivo**: columnas y tarjetas, agrupación de notas existentes por estado y filtrado de filas de una tabla.
+- **Clustering local**: agrupa notas por similitud de palabras en columnas con marcos.
+- **Flujos**: ordena y conecta la selección; **duelo de zonas** para comparar dos áreas.
+- **Galería de assets**: stickers y símbolos insertables con un clic.
+- **Make Real local**: genera una página HTML autocontenida a partir de wireframes y textos del tablero.
+- **Comparador**: dos tableros lado a lado con render real.
+- **Doc ↔ pizarra**: editor Markdown bidireccional que vuelve a crear textos nativos.
+- **Aula**: votación por QR y resultados en vivo, ruleta y dado, modo examen con una hoja por alumno, bloqueo y presentación.
+- **Replay de sesión**: grabación por fotogramas, línea de tiempo, mapa de calor, cronología por persona, filtro por autor, exportación JSON y **vídeo WebM**.
+- **Captura**: pantalla, cámara web y cámara de documento; dictado al lienzo con Web Speech.
+- **Accesibilidad**: modo de texto grande, cursor magnético suavizado para manos con temblor, foco reforzado y sonido espacial de la sala.
+- **Ambiente de sala**: ruido blanco generado con Web Audio.
+- **Apariencia**: texturas de tablero (papel, lienzo, pizarra) y letra manuscrita aplicable a textos.
+- **i18n ES/EN**: catálogos base, variables tipo ICU y catálogos comunitarios importables/exportables.
+- **Sidekick local / IA BYOK**: compatible con Ollama y APIs OpenAI-compatible desde el navegador.
+- **MCP**: servidor stdio `server/mcp.mjs` con herramientas para listar, leer y dibujar en tableros, más un endpoint local `POST /api/boards/:id/ops` limitado a loopback.
+
+### Cambiado
+
+- La versión del proyecto pasa a `2.0.0`; las claves de almacenamiento no cambian.
+- El dock de aula incorpora **Lab** y el panel se oculta al presentar.
+- Los catálogos comunitarios fuerzan un re-render al instalarse.
+- El servidor acepta `POST` en CORS y valida que las operaciones MCP vengan de `127.0.0.1`/`::1`.
+
+### Verificación
+
+`npm run typecheck`, `npm test` (6 archivos / 33 pruebas), `npm run contraste` (48/48 AA) y `npm run build` pasan. QA de navegador: 33 herramientas del laboratorio visibles, conversión CSV/DOCX/PPTX, plugins instalar/insertar, idioma ES/EN y catálogo comunitario, votación QR, modo examen, editor de documento, replay con vídeo WebM, texturas, ambiente, comparador y cursor magnético. MCP y el endpoint de operaciones probados contra un servidor local.
+
+### Límites conocidos
+
+- La traducción cubre el laboratorio y parte del chrome; el resto de la app sigue en español.
+- **Make Real** usa una heurística local, no un modelo de visión.
+- El modo examen bloquea la pizarra y genera hojas, pero no aplica permisos distintos por alumno en el servidor.
+- El Kanban agrupa de forma puntual; no hay arrastre entre columnas.
+- Captura de pantalla, webcam y dictado dependen de permisos y APIs del navegador.
+- La asociación de archivos `.tiza` con el sistema operativo sigue sin implementarse.
+
 ## [1.4.0] — 2026-11-09
 
 Segunda tanda de producto: objetos ricos, aula en vivo, estudio, sala y migración desde otras pizarras. Se mantienen las claves internas de almacenamiento para no romper datos existentes.

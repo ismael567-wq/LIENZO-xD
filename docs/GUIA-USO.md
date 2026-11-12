@@ -12,13 +12,13 @@ La diferencia con Miro es el punto de partida:
 - **Colaboración en tu red**: un servidor pequeño permite editar entre dispositivos de la misma Wi-Fi.
 - **Datos abiertos**: exportas e importas JSON y PNG.
 
-Esta es la **versión 1.3.0**. Sigue siendo una alpha funcional pensada para probar el concepto y detectar fallos, no para producción.
+Esta es la **versión 2.0.0**. Sigue siendo una alpha funcional pensada para probar el concepto y detectar fallos, no para producción.
 
 ---
 
 ## 1. Instalar en Windows
 
-1. Descarga `tiza-Setup-1.3.0.exe`.
+1. Descarga `tiza-Setup-2.0.0.exe`.
 2. Ejecútalo.
 3. Windows puede mostrar **“Windows protegió tu PC”** porque el ejecutable **no está firmado**. Pulsa **Más información → Ejecutar de todas formas**. Es normal en una alpha sin certificado de firma de código.
 4. Elige la carpeta de instalación o deja la predeterminada.
@@ -31,7 +31,7 @@ El instalador crea:
 - Entrada en el menú Inicio.
 - Desinstalador en **Configuración → Aplicaciones**.
 
-También existe una versión **portable** (`tiza-1.3.0-portable.exe`) que no requiere instalación.
+También existe una versión **portable** (`tiza-2.0.0-portable.exe`) que no requiere instalación.
 
 ### Actualizar desde una versión anterior
 
@@ -175,18 +175,45 @@ Esta entrega incluye comentarios y documentación para que el proyecto sea fáci
 - Sala LAN con QR, presencia y sincronización.
 - Búsqueda, historial de versiones, temporizador de foco y bloqueo de pizarra.
 - Archivos arbitrarios, conectores con anclas y terminales, texturas de marco, exportación PDF/SVG, carpetas y papelera.
+- Objetos ricos, PDF anotable, vídeo, audio, voz en comentarios, aula, sala, estudio y portales.
+- Laboratorio v2: gráficos, Office local, plugins, Kanban, wireframes, votación QR, modo examen, replay y capturas.
 - Temas automático, día y noche, con contraste AA y objetivos táctiles de 44 px.
 - Instalador de Windows y versión portable.
 
 ### Límites alpha conocidos
 
-- No hay nube, cuentas, permisos enterprise, IA ni 250+ integraciones.
+- No hay nube, cuentas, permisos enterprise ni 250+ integraciones. La IA es opcional y local/BYOK.
 - La sincronización es **last-write-wins por objeto**; si dos personas editan el mismo objeto a la vez, una edición puede pisar la otra.
 - La sala LAN no tiene autenticación.
+- La traducción completa de la interfaz y el Make Real con visión artificial siguen pendientes.
+- El modo examen no aplica permisos individuales por alumno.
 - El catálogo tiene 9 plantillas.
 - El ejecutable no está firmado; SmartScreen puede avisar.
 - El rendimiento con decenas de miles de objetos no está optimizado.
 - El APK/IPA no viene compilado.
+
+### MCP y automatización local
+
+El servidor MCP permite que un agente lea y dibuje en tus tableros a través de la sala LAN:
+
+```bash
+# Terminal 1: sala local
+npm run server
+
+# Terminal 2: servidor MCP por stdio
+npm run mcp
+```
+
+Configúralo en tu cliente MCP como comando `node` con argumento `server/mcp.mjs`. Herramientas disponibles:
+
+- `tiza_list_boards` — lista tableros activos o persistidos.
+- `tiza_read_board` — lee un tablero completo.
+- `tiza_add_sticky` — dibuja una nota.
+- `tiza_add_text` — dibuja un texto.
+- `tiza_add_frame` — dibuja un marco.
+- `tiza_board_text` — extrae el texto legible.
+
+El endpoint `POST /api/boards/:id/ops` solo acepta peticiones desde `127.0.0.1`/`::1`. Los plugins del Laboratorio son JSON declarativos y no ejecutan código.
 
 ### Cómo reportar un fallo
 
@@ -195,7 +222,7 @@ Incluye:
 1. Qué estabas haciendo.
 2. Qué esperabas.
 3. Qué ocurrió.
-4. Versión (`1.3.0`) y plataforma (Windows, navegador, móvil).
+4. Versión (`2.0.0`) y plataforma (Windows, navegador, móvil).
 5. Una captura o el tablero exportado en JSON si es posible.
 
 ---

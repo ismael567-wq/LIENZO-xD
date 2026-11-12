@@ -1,8 +1,21 @@
-# tiza 1.3.0
+# tiza 2.0.0
 
 ![tiza](https://raw.githubusercontent.com/ismael567-wq/LIENZO-xD/main/docs/screenshots/portada.png)
 
-**tiza — pizarras en vivo.** La pizarra visual local-first para Windows, web y móvil estrena identidad y una primera tanda de funciones de productividad. Sin cuentas, sin nube y con tus tableros en tu dispositivo.
+**tiza — pizarras en vivo.** La pizarra visual local-first para Windows, web y móvil llega a la fase 2.0: datos, aula, replay, accesibilidad y automatizaciones locales. Sin cuentas, sin nube y con tus tableros en tu dispositivo.
+
+## v2.0: laboratorio, aula y replay
+
+- **Laboratorio v2** con 33 herramientas en un solo panel.
+- **Datos**: gráficos desde CSV/TSV, conversión local de DOCX/PPTX/CSV, embeds, wireframes y galería de assets.
+- **Prototipos**: Kanban vivo, agrupación de notas, filtrado de tablas, clustering, flujos, comparador y Doc ↔ pizarra.
+- **Aula**: votación QR, ruleta/dado, modo examen con hojas por alumno y pizarra bloqueada.
+- **Replay**: fotogramas, línea de tiempo, mapa de calor, cronología por persona, filtro por autor y exportación JSON o **WebM**.
+- **Captura**: pantalla, webcam y documento; dictado al lienzo.
+- **IA local**: Sidekick con Ollama o APIs OpenAI-compatible y **Make Real** que genera HTML desde el tablero.
+- **Accesibilidad**: modo de texto grande, cursor magnético, foco reforzado y sonido espacial.
+- **Apariencia**: texturas de tablero, letra manuscrita e i18n ES/EN con catálogos comunitarios.
+- **v2.0+**: servidor **MCP** por stdio, endpoint local de operaciones y plugins JSON declarativos.
 
 ## v1.4: objetos ricos y aula en vivo
 
@@ -41,13 +54,23 @@
 
 - `npm run typecheck` sin errores.
 - 33 pruebas unitarias aprobadas.
-- `npm run build` correcto.
+- `npm run build` correcto (2.143 módulos; PWA con 33 entradas).
 - `npm run contraste` → 48/48 AA.
-- QA visual en navegador real a 1440×900 y 390×844.
+- QA visual y funcional en navegador real a 1440×900 y 390×844.
+- MCP y endpoint local de operaciones probados contra un servidor de sala.
 
 ## Pendiente
 
-El rediseño está aplicado y la familia v1.3 está completa (13/13). Quedan pendientes v1.4 (42), v2.0 (31) y v2.0+ (4). Entre lo pendiente: notas de voz/vídeo, flashcards y colaboración CRDT. La asociación de archivos `.tiza` con el sistema operativo no está registrada; la importación funciona desde el menú.
+Las familias v1.3 (13/13), v1.4 (42/42) y v2.0 (31/31) están completas. De v2.0+ se entregan MCP, plugins y Make Real; falta la asociación de archivos `.tiza` con el sistema operativo.
+
+Límites honestos de esta entrega:
+
+- La traducción cubre el laboratorio y parte del chrome; el resto sigue en español.
+- **Make Real** es una heurística local, no un modelo de visión.
+- El modo examen no aplica permisos individuales por alumno.
+- El Kanban agrupa de forma puntual, sin arrastre continuo entre columnas.
+- Captura y dictado dependen de permisos y APIs del navegador.
+- Sin CRDT: la colaboración sigue siendo last-write-wins por objeto.
 
 Detalle completo en [`docs/TIZA-V2.md`](TIZA-V2.md).
 
@@ -57,8 +80,8 @@ Los artefactos se generan desde el código:
 
 ```bash
 npm install
-npm run desktop:installer   # release/tiza-Setup-1.3.0.exe
-npm run desktop:portable    # release/tiza-1.3.0-portable.exe
+npm run desktop:installer   # release/tiza-Setup-2.0.0.exe
+npm run desktop:portable    # release/tiza-2.0.0-portable.exe
 ```
 
 El ejecutable no está firmado. Si Windows muestra “Windows protegió tu PC”: **Más información → Ejecutar de todas formas**.
@@ -74,7 +97,7 @@ Tus tableros y preferencias se conservan. Las claves internas `lienzo:*` se mant
 
 ## Límites conocidos
 
-- Sin nube, cuentas, IA, integraciones ni permisos enterprise.
+- Sin nube ni cuentas; la IA es opcional (Ollama o API compatible) y no hay permisos enterprise.
 - Colaboración **last-write-wins** por objeto; sin CRDT.
 - Sala LAN sin autenticación; úsala en redes de confianza.
 - Ejecutable sin firma de código.

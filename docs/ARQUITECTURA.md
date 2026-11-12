@@ -352,11 +352,9 @@ Ver [`VERIFICACION.md`](VERIFICACION.md) para comandos y resultados.
 
 El estado detallado de los dos informes de producto está en [`TIZA-V2.md`](TIZA-V2.md). Resumen:
 
-- **Aplicado en 1.3.0**: identidad v2, temas noche/día/auto, tipografía, sistema visual, búsqueda, historial, temporizador y bloqueo.
-- **Pendiente v1.3**: 9 ideas restantes de las 13 del horizonte.
-- **Pendiente v1.4**: 42 ideas.
-- **Pendiente v2.0**: 31 ideas.
-- **Pendiente v2.0+**: 4 ideas.
+- **Aplicado en 2.0.0**: identidad v2, temas noche/día/auto, tipografía, sistema visual, búsqueda, historial, temporizador, bloqueo, objetos ricos, aula, sala, laboratorio de datos, replay, accesibilidad y MCP.
+- **Pendiente v2.0+**: asociación `.tiza` con el sistema operativo (MCP, plugins y Make Real entregados).
+- **Pendiente de alcance**: traducción completa de la interfaz, visión artificial para Make Real y permisos individuales de examen.
 - **Corto plazo recomendado**: exportación PDF/SVG, anclas laterales de conectores, arrastrar cualquier archivo, notas de voz, flashcards, índice espacial y tests de accesibilidad.
 - **Medio plazo**: Yjs/CRDT para texto y objetos, historial colaborativo, APK firmado.
 - **Largo plazo**: cuentas opcionales + sync cifrado, plugins, IA con proveedor propio, MCP para que agentes lean y escriban tableros, versión enterprise autoalojada.

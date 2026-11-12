@@ -4,7 +4,7 @@
 
 Repositorio: <https://github.com/ismael567-wq/LIENZO-xD> · Releases: <https://github.com/ismael567-wq/LIENZO-xD/releases>
 
-> **Versión `1.3.0`.** Alpha funcional para probar y dar feedback, no para producción. El instalador de Windows no está firmado; SmartScreen puede pedir confirmación. Lee la [guía de uso](docs/GUIA-USO.md) y los [límites conocidos](docs/ARQUITECTURA.md#11-límites-conocidos).
+> **Versión `2.0.0`.** Alpha funcional para probar y dar feedback, no para producción. El instalador de Windows no está firmado; SmartScreen puede pedir confirmación. Lee la [guía de uso](docs/GUIA-USO.md) y los [límites conocidos](docs/ARQUITECTURA.md#11-límites-conocidos).
 
 ![tiza — captura principal](docs/screenshots/portada.png)
 
@@ -196,9 +196,9 @@ Resultados y comandos en [`docs/VERIFICACION.md`](docs/VERIFICACION.md).
 
 ## Estado y límites
 
-Este es un **MVP alpha funcional**, no un clon completo de Miro. Funciona y está probado en web, escritorio y móvil (PWA), pero no incluye nube, cuentas, permisos enterprise, las 250+ integraciones ni IA generativa. La colaboración es LWW por objeto y está pensada para equipos pequeños en la misma red.
+Este es un **MVP alpha funcional**, no un clon completo de Miro. Funciona y está probado en web, escritorio y móvil (PWA), pero no incluye nube, cuentas, permisos enterprise ni las 250+ integraciones. La IA es opcional y local/BYOK. La colaboración es LWW por objeto y está pensada para equipos pequeños en la misma red.
 
-El rediseño visual v2 está aplicado y la familia v1.3 está completa (13/13): búsqueda, historial, temporizador, bloqueo, archivos y portapapeles, conectores con anclas y terminales, texturas de marco, exportación PDF/SVG, respaldo `.tiza`, carpetas y papelera. Queda pendiente el resto del roadmap —notas de voz o vídeo, flashcards y las familias v1.4/v2.0/v2.0+— inventariado en [`docs/TIZA-V2.md`](docs/TIZA-V2.md#8-lo-que-queda-pendiente).
+Las familias v1.3 (13/13), v1.4 (42/42) y v2.0 (31/31) están completas. De v2.0+ se entregan MCP, plugins y Make Real; falta la asociación `.tiza` con el sistema operativo. El detalle y los límites honestos están en [`docs/TIZA-V2.md`](docs/TIZA-V2.md#8-lo-que-queda-pendiente).
 
 Lista completa de límites en [`docs/ARQUITECTURA.md#11-límites-conocidos`](docs/ARQUITECTURA.md#11-límites-conocidos).
 

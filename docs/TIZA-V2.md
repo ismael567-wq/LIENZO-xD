@@ -1,6 +1,6 @@
 # tiza v2 — rediseño y alcance
 
-> Documento de entrega de la iteración `1.3.0`. Resume la identidad aplicada, el sistema visual, las funciones nuevas y lo que queda pendiente de los dos informes de producto.
+> Documento de entrega de la iteración `2.0.0`. Resume la identidad aplicada, el sistema visual, las funciones nuevas y lo que queda pendiente de los dos informes de producto.
 
 ## 1. Resumen ejecutivo
 
@@ -160,7 +160,7 @@ Las fuentes se cargan como paquetes locales (`@fontsource-variable`), no desde u
 - Exportadores en `src/lib/pdf.ts`, `src/lib/svg.ts` y `src/lib/export.ts`.
 - Carpetas y papelera en el store con persistencia separada (`lienzo:folders:v1`).
 - Iconos PWA y de escritorio regenerados desde el nuevo símbolo.
-- Metadatos de app: `tiza`, versión `1.3.0`, `appId` `app.tiza.desktop`.
+- Metadatos de app: `tiza`, versión `2.0.0`, `appId` `app.tiza.desktop`.
 - Se conservan las claves `useLienzo` y `lienzo:*` para no invalidar tableros ni preferencias.
 
 ## 7. Verificación
@@ -184,26 +184,28 @@ Resultados de la iteración:
 
 ## 8. Lo que queda pendiente
 
-Los informes suman **90 ideas** agrupadas en 9 familias y repartidas en cuatro horizontes. La familia **v1.3 está completa (13/13)**.
+Los informes suman **90 ideas** agrupadas en 9 familias y repartidas en cuatro horizontes. Las familias **v1.3 (13/13)**, **v1.4 (42/42)** y **v2.0 (31/31)** están completas. De v2.0+ se entregan MCP, plugins y Make Real; la asociación `.tiza` con el sistema operativo queda fuera por decisión de alcance.
 
 | Horizonte | Ideas | Implementadas | Estado |
 |---|---:|---:|---|
 | v1.3 | 13 | 13 | Completado |
 | v1.4 | 42 | 42 | Completado |
-| v2.0 | 31 | 0 | En curso |
-| v2.0+ | 4 | 0 | Pendiente |
+| v2.0 | 31 | 31 | Completado |
+| v2.0+ | 4 | 3 | MCP, plugins y Make Real; falta asociación `.tiza` |
 
 Pendientes destacados que no deben darse por hechos:
 
-- Las 31 ideas de la fase v2.0 y las 4 de v2.0+ (grabación de pantalla, webcam, embeds, gráficos, replay, duelos, accesibilidad avanzada, MCP y plugins).
-- Sincronización CRDT, cuentas opcionales y colaboración fuera de la LAN.
 - Asociación de archivos `.tiza` a nivel de sistema operativo: la importación funciona desde el menú y el selector de archivos, pero no hay registro de tipo de archivo en Windows/macOS.
+- Traducción completa de toda la interfaz: los catálogos ES/EN cubren el laboratorio y parte del chrome.
+- **Make Real** es una heurística local, no un modelo de visión.
+- Permisos por alumno en modo examen más allá del bloqueo de pizarra.
+- Sincronización CRDT, cuentas opcionales y colaboración fuera de la LAN.
 
 ## 9. Siguiente prioridad recomendada
 
-1. Fase v2.0: aula avanzada, replay, gráficos, automatizaciones y accesibilidad.
-2. Fase v2.0+: servidor MCP de la sala, sistema de plugins y Make Real local.
-3. CRDT y cuentas opcionales: solo cuando haya validación de uso real.
+1. Traducir el resto de la interfaz con los catálogos ya existentes.
+2. CRDT y cuentas opcionales: solo cuando haya validación de uso real.
+3. Asociación `.tiza` por sistema operativo y firma de instaladores.
 
 ## 10. Entrega v1.4
 
@@ -222,4 +224,49 @@ La fase v1.4 está implementada y verificada. Añade:
 - **CSV a tabla** y pegado de archivos del portapapeles.
 
 Verificación: `npm run typecheck`, `npm test` (33 pruebas), `npm run contraste` (48/48) y `npm run build`, además de QA en navegador sobre el tablero de bienvenida.
+
+## 11. Entrega v2.0
+
+La fase v2.0 y tres de las cuatro ideas de v2.0+ están implementadas. El punto de entrada es el panel **Lab** del dock de aula (`src/components/V2Tools.tsx`), con 33 herramientas.
+
+### Datos y prototipos
+
+- **Gráficos** desde CSV/TSV en barras, línea o tarta (`src/lib/v2.ts`).
+- **Office local** con `fflate`: DOCX a marcos de texto, PPTX a una sección por diapositiva y CSV/TSV a tabla nativa (`src/lib/office.ts`).
+- **Embeds** de proveedores permitidos y **galería de assets**.
+- **Wireframes** de navegador, móvil, landing y panel; **Make Real** genera HTML autocontenido.
+- **Kanban**, agrupación de notas por estado, filtrado de tablas, clustering por similitud y ordenación de flujos.
+- **Comparador** de tableros y **Doc ↔ pizarra** con ida y vuelta a Markdown.
+
+### Aula y sesión
+
+- **Votación QR** con resultados en vivo sobre notas votables.
+- **Ruleta y dado** con las personas de la sala.
+- **Modo examen** con una hoja por alumno, bloqueo de pizarra y presentación.
+- **Replay** por fotogramas con línea de tiempo, mapa de calor, cronología, filtro por autor y exportación JSON o WebM.
+- **Captura** de pantalla, webcam y documento; **dictado** con Web Speech.
+- **Ambiente de sala** con Web Audio y **sonido espacial** de la actividad remota.
+
+### Accesibilidad y apariencia
+
+- **Modo accesible** de texto grande, **cursor magnético** suavizado y foco reforzado.
+- **Texturas** de tablero: papel, lienzo y pizarra.
+- **Letra manuscrita** aplicable a textos seleccionados.
+- **i18n ES/EN** con catálogos comunitarios importables y exportables (`src/lib/i18n.ts`).
+
+### v2.0+
+
+- **MCP** (`server/mcp.mjs`): herramientas `tiza_list_boards`, `tiza_read_board`, `tiza_add_sticky`, `tiza_add_text`, `tiza_add_frame` y `tiza_board_text` por JSON-RPC/stdio.
+- **Endpoint local** `POST /api/boards/:id/ops`, limitado a loopback, para que el agente dibuje en la sala.
+- **Plugins JSON** declarativos (`src/lib/plugins.ts`), sin ejecución de código.
+- **Make Real local** como generador de HTML a partir de la estructura del tablero.
+
+### Límites
+
+- Traducción parcial: laboratorio y parte del chrome.
+- Make Real no usa visión artificial.
+- Modo examen sin permisos individuales por alumno.
+- Kanban sin arrastre continuo entre columnas.
+- Captura y dictado sujetos a permisos/APIs del navegador.
+- Asociación `.tiza` con el sistema operativo no implementada.
 
