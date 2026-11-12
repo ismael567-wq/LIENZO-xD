@@ -352,6 +352,104 @@ export function buildZoneDuel(point: { x: number; y: number }): BoardItem[] {
   return items;
 }
 
+const CLUSTER_STOPWORDS = new Set([
+  'para',
+  'como',
+  'este',
+  'esta',
+  'esto',
+  'unos',
+  'unas',
+  'con',
+  'por',
+  'del',
+  'las',
+  'los',
+  'que',
+  'una',
+  'uno',
+  'más',
+  'the',
+  'and',
+  'with',
+]);
+
+/** Agrupa notas por similitud de palabras y las ordena en columnas. */
+export function clusterNotes(items: BoardItem[], maxGroups = 4): BoardItem[] {
+  const notes = items.filter(
+    (item) =>
+      (item.type === 'sticky' || item.type === 'text' || item.type === 'shape') &&
+      item.text.trim().length > 0,
+  );
+  if (notes.length < 2) return items;
+  const tokenize = (text: string) =>
+    text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .split(/[^a-z0-9áéíóúñ]+/)
+      .filter((token) => token.length > 3 && !CLUSTER_STOPWORDS.has(token));
+  const tokens = new Map<string, string[]>();
+  const frequency = new Map<string, number>();
+  notes.forEach((note) => {
+    const words = tokenize('text' in note ? note.text ?? '' : '');
+    tokens.set(note.id, words);
+    for (const word of new Set(words)) {
+      frequency.set(word, (frequency.get(word) ?? 0) + 1);
+    }
+  });
+  const labels = [...frequency.entries()]
+    .filter(([, count]) => count >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, Math.max(2, maxGroups))
+    .map(([word]) => word);
+  const groups: Array<{ label: string; notes: BoardItem[] }> = labels.map((label) => ({
+    label,
+    notes: [],
+  }));
+  if (groups.length < 2) {
+    groups.length = 0;
+    groups.push({ label: 'Grupo A', notes: [] }, { label: 'Grupo B', notes: [] });
+  }
+  notes.forEach((note) => {
+    const words = tokens.get(note.id) ?? [];
+    let best = 0;
+    let bestScore = -1;
+    groups.forEach((group, index) => {
+      const score = words.filter((word) => group.label.includes(word)).length;
+      if (score > bestScore) {
+        bestScore = score;
+        best = index;
+      }
+    });
+    if (bestScore <= 0) best = note.id.length % groups.length;
+    groups[best].notes.push(note);
+  });
+  const filled = groups.filter((group) => group.notes.length > 0);
+  const startX = Math.min(...notes.map((note) => note.x));
+  const startY = Math.min(...notes.map((note) => note.y));
+  const result: BoardItem[] = [];
+  filled.forEach((group, index) => {
+    const x = startX + index * 380;
+    const frame = newFrame(
+      { x, y: startY, w: 340, h: 80 + group.notes.length * 130 },
+      `Flujo · ${group.label}`,
+    );
+    frame.fill = index % 2 === 0 ? '#F7F3EA' : '#FBF8F1';
+    result.push(frame);
+    group.notes.forEach((note, row) => {
+      result.push({
+        ...note,
+        x: x + 20,
+        y: startY + 64 + row * 130,
+        w: 300,
+        h: 110,
+      } as BoardItem);
+    });
+  });
+  return [...result, ...items.filter((item) => !notes.includes(item))];
+}
+
 /** Coloca la selección en una fila ordenada y la conecta en cadena. */
 export function arrangeFlow(items: BoardItem[], gap = 80): BoardItem[] {
   const nodes = items.filter((item) => item.type !== 'connector');
@@ -509,6 +607,34 @@ ${blocks}
 </div>
 </body>
 </html>`;
+}
+
+/** Convierte un documento Markdown editable en textos nativos del lienzo. */
+export function markdownToItems(text: string, point: { x: number; y: number }): BoardItem[] {
+  const items: BoardItem[] = [];
+  let y = point.y;
+  const lines = text.split(/\r?\n/).slice(0, 220);
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) {
+      y += 12;
+      continue;
+    }
+    const heading = line.match(/^(#{1,3})\s+(.*)$/);
+    const bullet = line.match(/^[-*]\s+(.*)$/);
+    const content = heading?.[2] ?? bullet?.[1] ?? line;
+    const title = newText({ x: point.x, y }, bullet ? `• ${content}` : content);
+    title.w = 620;
+    title.fontSize = heading ? (heading[1].length === 1 ? 28 : heading[1].length === 2 ? 22 : 18) : 15;
+    title.fontWeight = heading ? 700 : 400;
+    title.color = heading ? '#16211E' : '#26332F';
+    const height =
+      heading?.[1].length === 1 ? 42 : heading?.[1].length === 2 ? 34 : 18 + Math.ceil(content.length / 68) * 20;
+    title.h = height;
+    items.push(title);
+    y += height + 8;
+  }
+  return items;
 }
 
 export function boardToText(board: Board): string {

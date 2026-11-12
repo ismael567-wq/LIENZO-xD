@@ -55,6 +55,7 @@ import {
   saveStoredFile,
   uploadFileToServer,
 } from '../lib/files';
+import { canConvertOffice, officeToItems } from '../lib/office';
 
 function PresentationOverlay({ board }: { board: Board }) {
   const presentation = useLienzo((state) => state.presentation);
@@ -280,6 +281,8 @@ export function BoardView() {
   const zen = useLienzo((state) => state.zen);
   const theme = useLienzo((state) => state.theme);
   const saveStatus = useLienzo((state) => state.saveStatus);
+  const trail = useLienzo((state) => state.trail);
+  const boards = useLienzo((state) => state.boards);
   const setZen = useLienzo((state) => state.setZen);
   const [panelOpen, setPanelOpen] = useState(!isMobile);
   const [pendingComment, setPendingComment] = useState<Point | null>(null);
@@ -480,7 +483,38 @@ export function BoardView() {
       for (let index = 0; index < otherFiles.length; index += 1) {
         const file = otherFiles[index];
         const fileId = uid(14);
+        const point = {
+          x: center.x + (index % 3) * 330,
+          y: center.y + Math.floor(index / 3) * 220 + index * 8,
+        };
         try {
+          if (canConvertOffice(file.name, file.type)) {
+            const convert = window.confirm(
+              `¿Convertir "${file.name}" en objetos nativos del lienzo?\n\nAceptar: marcos, textos o tabla editable.\nCancelar: se guarda como archivo adjunto.`,
+            );
+            if (convert) {
+              const items = officeToItems(
+                file.name,
+                file.type,
+                await file.arrayBuffer(),
+                point,
+              );
+              if (items.length > 0) {
+                state.pushHistory();
+                for (const item of items) {
+                  state.addItem(item, { select: false, history: false });
+                }
+                state.select(
+                  items.filter((item) => item.type !== 'connector').map((item) => item.id),
+                );
+                state.showToast(
+                  `"${file.name}" convertido en ${items.length} objetos nativos.`,
+                  'success',
+                );
+                continue;
+              }
+            }
+          }
           await saveStoredFile(fileId, file);
           const kind = guessFileKind(file.type, file.name);
           let text: string | undefined;
@@ -491,20 +525,14 @@ export function BoardView() {
               // Text extraction is best-effort.
             }
           }
-          const item = newFile(
-            {
-              x: center.x + (index % 3) * 330,
-              y: center.y + Math.floor(index / 3) * 220 + index * 8,
-            },
-            {
-              fileId,
-              name: file.name,
-              mime: file.type || 'application/octet-stream',
-              size: file.size,
-              kind,
-              text,
-            },
-          );
+          const item = newFile(point, {
+            fileId,
+            name: file.name,
+            mime: file.type || 'application/octet-stream',
+            size: file.size,
+            kind,
+            text,
+          });
           state.addItem(item);
           if (base) {
             void uploadFileToServer(
@@ -860,6 +888,26 @@ export function BoardView() {
         onDragLeave={onDragLeave}
         onDrop={onDrop}
       >
+        {!presentation && trail.length > 0 ? (
+          <nav className="board-trail" aria-label="Ruta de tableros">
+            <button type="button" onClick={() => useLienzo.getState().closeBoard()}>
+              Inicio
+            </button>
+            {trail.map((id) => {
+              const previous = boards.find((candidate) => candidate.id === id);
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => useLienzo.getState().openBoard(id)}
+                >
+                  {previous?.name ?? 'Tablero'}
+                </button>
+              );
+            })}
+            <span aria-current="page">{board.name}</span>
+          </nav>
+        ) : null}
         <CanvasStage
           board={board}
           viewport={viewport}

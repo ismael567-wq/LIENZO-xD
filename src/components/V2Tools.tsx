@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import QRCode from 'qrcode';
 import {
   Accessibility,
   BarChart3,
+  Blocks,
   Bot,
   Camera,
   Check,
@@ -9,18 +11,22 @@ import {
   Dices,
   Download,
   FileCode2,
+  FileSpreadsheet,
   FileText,
   Frame,
   Image as ImageIcon,
+  Languages,
   Layers,
   LayoutGrid,
   ListOrdered,
   Mic,
   MonitorPlay,
+  MousePointer2,
   Palette,
   Play,
   Podcast,
   Presentation,
+  QrCode,
   RotateCcw,
   Shuffle,
   Sparkles,
@@ -35,6 +41,7 @@ import type { Board, BoardItem, CommentPin, FileItem, ImageItem } from '../types
 import { currentBoardOf, useLienzo } from '../store/boardStore';
 import { boundsOfItems, fitViewport, screenToWorld, uid } from '../lib/geometry';
 import { renderBoard } from '../lib/canvasRenderer';
+import { lanShareUrl } from '../lib/net';
 import {
   ASSET_LIBRARY,
   arrangeFlow,
@@ -42,17 +49,36 @@ import {
   buildKanban,
   buildWireframe,
   buildZoneDuel,
+  clusterNotes,
   isEmbedAllowed,
+  markdownToItems,
   parseDelimited,
   renderChartDataUrl,
   boardToText,
   type ChartKind,
   type WireframeKind,
 } from '../lib/v2';
-import { newSticker, newStickyRect } from '../lib/factory';
+import { newFrame, newSticker, newStickyRect, newText } from '../lib/factory';
 import { saveStoredFile } from '../lib/files';
 import { playSound } from '../lib/sound';
 import { boardToMarkdown } from '../lib/markdown';
+import { canConvertOffice, officeToItems } from '../lib/office';
+import {
+  catalogTemplate,
+  getLocale,
+  installCatalog,
+  setLocale,
+  t,
+  type Locale,
+} from '../lib/i18n';
+import {
+  PLUGIN_EXAMPLE,
+  installPlugin,
+  loadPlugins,
+  pluginToItems,
+  removePlugin,
+  type BoardPlugin,
+} from '../lib/plugins';
 
 interface Snapshot {
   at: number;
@@ -71,6 +97,11 @@ type Dialog =
   | 'compare'
   | 'doc'
   | 'capture'
+  | 'office'
+  | 'poll'
+  | 'language'
+  | 'plugins'
+  | 'exam'
   | null;
 
 interface AiConfig {
@@ -144,16 +175,34 @@ export function V2Tools({ board, onClose }: { board: Board; onClose: () => void 
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [recording, setRecording] = useState(false);
   const [cursor, setCursor] = useState(0);
+  const [authorFilter, setAuthorFilter] = useState<string | null>(null);
+  const [docText, setDocText] = useState('');
   const [compareId, setCompareId] = useState('');
   const [status, setStatus] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const [captureMode, setCaptureMode] = useState<'screen' | 'webcam' | 'document'>('webcam');
   const [capturing, setCapturing] = useState(false);
+  const [pollText, setPollText] = useState('Opción A\nOpción B\nOpción C');
+  const [pollQr, setPollQr] = useState('');
+  const [pollIds, setPollIds] = useState<string[]>([]);
+  const [locale, setLocaleState] = useState<Locale>(() => getLocale());
+  const [, bumpCatalog] = useState(0);
+  const [plugins, setPlugins] = useState<BoardPlugin[]>(() => loadPlugins());
+  const [pluginDraft, setPluginDraft] = useState(PLUGIN_EXAMPLE);
+  const [examCount, setExamCount] = useState(4);
+  const [spatial, setSpatial] = useState(
+    () => typeof localStorage !== 'undefined' && localStorage.getItem('lienzo:spatial:v1') === 'on',
+  );
+  const [magnetic, setMagnetic] = useState(
+    () => typeof localStorage !== 'undefined' && localStorage.getItem('lienzo:magnetic:v1') === 'on',
+  );
   const [ambience, setAmbience] = useState(false);
   const [accessible, setAccessible] = useState(
     () => localStorage.getItem('lienzo:accessible:v1') === 'on',
   );
 
   const theme = useLienzo((state) => state.theme);
+  const collab = useLienzo((state) => state.collab);
   const peers = useLienzo((state) => state.collab.peers);
   const userName = useLienzo((state) => state.userName);
   const stageSize = useLienzo((state) => state.stageSize);
@@ -259,6 +308,126 @@ export function V2Tools({ board, onClose }: { board: Board; onClose: () => void 
   const insertAsset = (symbol: string) => {
     const sticker = newSticker(center, symbol);
     insertItems([sticker]);
+  };
+
+  const importOffice = async (file: File) => {
+    if (!canConvertOffice(file.name, file.type)) {
+      showToast('Elige un .docx, .pptx, .csv o .tsv.', 'error');
+      return;
+    }
+    try {
+      const items = officeToItems(file.name, file.type, await file.arrayBuffer(), center);
+      if (items.length === 0) throw new Error('El documento no tiene contenido convertible.');
+      insertItems(items);
+      setDialog(null);
+      showToast(`${file.name}: ${items.length} objetos creados.`, 'success');
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : 'No se pudo convertir el documento.',
+        'error',
+      );
+    }
+  };
+
+  const createPoll = async () => {
+    const options = pollText
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(0, 10);
+    if (options.length < 2) {
+      showToast('Escribe al menos dos opciones, una por línea.', 'info');
+      return;
+    }
+    const startX = Math.round(center.x - 240);
+    const startY = Math.round(center.y - 200);
+    const frame = newFrame(
+      { x: startX, y: startY, w: 480, h: 100 + options.length * 70 },
+      'Votación QR · escanea y vota',
+    );
+    frame.fill = '#FBF8F1';
+    const items: BoardItem[] = [frame];
+    options.forEach((option, index) => {
+      const sticky = newStickyRect(
+        { x: startX + 24, y: startY + 60 + index * 70, w: 432, h: 56 },
+        index % 6,
+      );
+      sticky.text = option;
+      sticky.votes = [];
+      items.push(sticky);
+    });
+    insertItems(items);
+    setPollIds(items.filter((item) => item.type !== 'frame').map((item) => item.id));
+    const base =
+      collab.localServerUrl ??
+      (typeof window !== 'undefined' ? window.location.origin : '');
+    if (base) {
+      try {
+        const link = lanShareUrl(base, board.id);
+        setPollQr(
+          await QRCode.toDataURL(link, {
+            margin: 1,
+            width: 360,
+            color: { dark: '#16211E', light: '#FFFDF7' },
+          }),
+        );
+      } catch {
+        setPollQr('');
+      }
+    } else {
+      setPollQr('');
+    }
+    playSound('success');
+  };
+
+  const pollResults = board.items
+    .filter((item) => pollIds.includes(item.id))
+    .map((item) => ({
+      id: item.id,
+      label:
+        item.type === 'sticky' || item.type === 'text' || item.type === 'shape'
+          ? item.text
+          : item.type,
+      votes: 'votes' in item ? item.votes?.length ?? 0 : 0,
+    }))
+    .sort((a, b) => b.votes - a.votes);
+
+  const createExam = () => {
+    const count = Math.max(1, Math.min(12, Math.round(examCount)));
+    const columns = Math.min(4, Math.ceil(Math.sqrt(count)));
+    const startX = Math.round(center.x - (columns * 380) / 2);
+    const startY = Math.round(center.y - 260);
+    const items: BoardItem[] = [
+      (() => {
+        const title = newText({ x: startX, y: startY - 70 }, 'Modo examen · una hoja por alumno');
+        title.fontSize = 26;
+        title.w = columns * 380;
+        return title;
+      })(),
+    ];
+    for (let index = 0; index < count; index += 1) {
+      const x = startX + (index % columns) * 380;
+      const y = startY + Math.floor(index / columns) * 520;
+      const frame = newFrame({ x, y, w: 360, h: 480 }, `Alumno ${index + 1}`);
+      frame.fill = '#FFFDF7';
+      items.push(frame);
+      const name = newText({ x: x + 20, y: y + 48 }, 'Nombre: ');
+      name.fontSize = 15;
+      name.w = 320;
+      items.push(name);
+      const answer = newText({ x: x + 20, y: y + 92 }, 'Respuesta…');
+      answer.fontSize = 14;
+      answer.w = 320;
+      answer.h = 340;
+      answer.color = '#6B665C';
+      items.push(answer);
+    }
+    insertItems(items);
+    const store = useLienzo.getState();
+    if (!board.locked) store.toggleBoardLock();
+    store.startPresentation();
+    setDialog(null);
+    showToast(`${count} hojas creadas. Exporta a PDF una página por marco.`, 'success');
   };
 
   const insertWireframe = (kind: WireframeKind) => {
@@ -386,7 +555,15 @@ export function V2Tools({ board, onClose }: { board: Board; onClose: () => void 
     const bounds = boundsOfItems(activeSnapshot.items) ?? { x: 0, y: 0, w: 1000, h: 700 };
     const previewBoard: Board = {
       ...board,
-      items: activeSnapshot.items,
+      items: authorFilter
+        ? activeSnapshot.items.filter(
+            (item) =>
+              item.type === 'connector' ||
+              !('author' in item) ||
+              !item.author ||
+              item.author === authorFilter,
+          )
+        : activeSnapshot.items,
       comments: activeSnapshot.comments,
     };
     renderBoard(ctx, previewBoard, {
@@ -399,7 +576,7 @@ export function V2Tools({ board, onClose }: { board: Board; onClose: () => void 
       comments: false,
       selected: [],
     });
-  }, [dialog, activeSnapshot, board, theme]);
+  }, [dialog, activeSnapshot, board, theme, authorFilter]);
 
   const compareBoard = useMemo(
     () => boards.find((candidate) => candidate.id === compareId) ?? null,
@@ -444,6 +621,71 @@ export function V2Tools({ board, onClose }: { board: Board; onClose: () => void 
     setTimeout(() => URL.revokeObjectURL(url), 1500);
   };
 
+  const exportReplayVideo = async () => {
+    if (snapshots.length === 0 || exporting) return;
+    if (typeof MediaRecorder === 'undefined') {
+      showToast('Tu navegador no permite exportar vídeo del replay.', 'error');
+      return;
+    }
+    setExporting(true);
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1280;
+      canvas.height = 720;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('No se pudo preparar el lienzo del replay.');
+      const stream = canvas.captureStream(8);
+      const recorder = new MediaRecorder(
+        stream,
+        MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+          ? { mimeType: 'video/webm;codecs=vp9' }
+          : { mimeType: 'video/webm' },
+      );
+      const chunks: Blob[] = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) chunks.push(event.data);
+      };
+      const finished = new Promise<Blob>((resolve) => {
+        recorder.onstop = () => resolve(new Blob(chunks, { type: 'video/webm' }));
+      });
+      recorder.start();
+      for (const snapshot of snapshots) {
+        const bounds = boundsOfItems(snapshot.items) ?? { x: 0, y: 0, w: 1000, h: 700 };
+        renderBoard(
+          ctx,
+          { ...board, items: snapshot.items, comments: snapshot.comments },
+          {
+            width: canvas.width,
+            height: canvas.height,
+            dpr: 1,
+            viewport: fitViewport(bounds, canvas.width, canvas.height, 32, 1),
+            theme,
+            preview: true,
+            comments: false,
+            selected: [],
+          },
+        );
+        await new Promise((resolve) => setTimeout(resolve, 110));
+      }
+      recorder.stop();
+      const blob = await finished;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `replay-${board.name.replace(/\s+/g, '-').toLowerCase()}.webm`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5_000);
+      showToast('Replay exportado como vídeo WebM.', 'success');
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : 'No se pudo exportar el vídeo.',
+        'error',
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const restoreReplay = () => {
     if (!activeSnapshot) return;
     useLienzo.getState().restoreSnapshot(
@@ -485,6 +727,36 @@ export function V2Tools({ board, onClose }: { board: Board; onClose: () => void 
     });
   }, [snapshots]);
 
+  const applyClusters = () => {
+    const store = useLienzo.getState();
+    const current = currentBoardOf(store);
+    if (!current) return;
+    const source =
+      selected.length > 0
+        ? current.items.filter((item) => selected.includes(item.id))
+        : current.items;
+    if (source.filter((item) => item.type !== 'connector').length < 2) {
+      showToast('Necesitas al menos dos notas para agruparlas.', 'info');
+      return;
+    }
+    const clustered = clusterNotes(source);
+    store.pushHistory();
+    store.updateItems(
+      clustered
+        .filter((item) => item.type !== 'frame' && item.type !== 'connector')
+        .map((item) => ({
+          id: item.id,
+          patch: { x: item.x, y: item.y, w: item.w, h: item.h },
+        })),
+    );
+    for (const frame of clustered.filter((item) => item.type === 'frame')) {
+      if (!current.items.some((item) => item.id === frame.id)) {
+        store.addItem(frame, { select: false, history: false });
+      }
+    }
+    showToast('Notas agrupadas por similitud en columnas.', 'success');
+  };
+
   const applyFlow = () => {
     const store = useLienzo.getState();
     const current = currentBoardOf(store);
@@ -508,6 +780,95 @@ export function V2Tools({ board, onClose }: { board: Board; onClose: () => void 
       }
     }
     showToast('Flujo ordenado en cadena.', 'success');
+  };
+
+  const insertPlugin = (plugin: BoardPlugin) => {
+    insertItems(pluginToItems(plugin, { x: center.x - 300, y: center.y - 200 }));
+    setDialog(null);
+    showToast(`Plugin "${plugin.name}" insertado.`, 'success');
+  };
+
+  const kanbanize = () => {
+    const store = useLienzo.getState();
+    const current = currentBoardOf(store);
+    if (!current) return;
+    const notes = current.items.filter(
+      (item) =>
+        (item.type === 'sticky' || item.type === 'text') &&
+        (selected.length === 0 || selected.includes(item.id)),
+    );
+    if (notes.length === 0) {
+      showToast('Selecciona notas o crea algunas para agruparlas.', 'info');
+      return;
+    }
+    const columns = [
+      { title: 'Por hacer', match: /^(por hacer|todo|pendiente)\b/i, fill: '#F7F3EA' },
+      { title: 'En curso', match: /^(en curso|doing|progreso)\b/i, fill: '#FBF8F1' },
+      { title: 'Hecho', match: /^(hecho|done|listo)\b/i, fill: '#F7F3EA' },
+    ];
+    const startX = Math.round(center.x - 560);
+    const startY = Math.round(center.y - 220);
+    const frames = columns.map((column, index) => {
+      const frame = newFrame(
+        { x: startX + index * 370, y: startY, w: 330, h: 420 },
+        column.title,
+      );
+      frame.fill = column.fill;
+      return frame;
+    });
+    const buckets: BoardItem[][] = [[], [], []];
+    notes.forEach((note) => {
+      const label =
+        note.type === 'sticky' || note.type === 'text' ? note.text.trim() : '';
+      const index = columns.findIndex((column) => column.match.test(label));
+      const target = index >= 0 ? index : 0;
+      const clean = label.replace(/^[^:]{2,24}:\s*/, '');
+      buckets[target].push({ ...note, text: clean || label } as BoardItem);
+    });
+    store.pushHistory();
+    frames.forEach((frame) => store.addItem(frame, { select: false, history: false }));
+    buckets.forEach((bucket, column) => {
+      bucket.forEach((note, row) => {
+        store.updateItem(note.id, {
+          x: startX + column * 370 + 20,
+          y: startY + 60 + row * 120,
+          w: 290,
+          h: 104,
+          ...(note.type === 'sticky' ? { text: (note as { text: string }).text } : {}),
+        });
+      });
+    });
+    store.select(frames.map((frame) => frame.id));
+    showToast(`${notes.length} notas agrupadas en el Kanban.`, 'success');
+  };
+
+  const filterTable = () => {
+    const store = useLienzo.getState();
+    const current = currentBoardOf(store);
+    if (!current) return;
+    const table = current.items.find(
+      (item) =>
+        item.type === 'table' && (selected.length === 0 || selected.includes(item.id)),
+    );
+    if (!table || table.type !== 'table') {
+      showToast('Selecciona una tabla para filtrar sus filas.', 'info');
+      return;
+    }
+    const query = window.prompt('Mostrar filas que contengan…', '');
+    if (query === null) return;
+    const needle = query.trim().toLowerCase();
+    if (!needle) {
+      showToast('Escribe un texto para filtrar.', 'info');
+      return;
+    }
+    const [header, ...body] = table.rows;
+    const rows = [
+      header,
+      ...body.filter((row) => row.join(' ').toLowerCase().includes(needle)),
+    ];
+    store.pushHistory();
+    store.updateItem(table.id, { rows });
+    showToast(`${rows.length - 1} filas coinciden con "${query}".`, 'success');
   };
 
   const makeReal = () => {
@@ -767,7 +1128,7 @@ export function V2Tools({ board, onClose }: { board: Board; onClose: () => void 
     }>;
   }> = [
     {
-      title: 'Datos y prototipos',
+      title: t('lab.groupData', undefined, locale),
       tools: [
         {
           id: 'chart',
@@ -784,6 +1145,20 @@ export function V2Tools({ board, onClose }: { board: Board; onClose: () => void 
           run: () => setDialog('embed'),
         },
         {
+          id: 'office',
+          label: 'Office y CSV',
+          hint: 'DOCX, PPTX y tablas',
+          icon: <FileSpreadsheet size={17} />,
+          run: () => setDialog('office'),
+        },
+        {
+          id: 'plugins',
+          label: 'Plugins JSON',
+          hint: 'Formas y plantillas de la comunidad',
+          icon: <Blocks size={17} />,
+          run: () => setDialog('plugins'),
+        },
+        {
           id: 'wireframe',
           label: 'Kit de wireframe',
           hint: 'Navegador, móvil, tarjeta…',
@@ -798,11 +1173,32 @@ export function V2Tools({ board, onClose }: { board: Board; onClose: () => void 
           run: applyFlow,
         },
         {
+          id: 'clusters',
+          label: 'Agrupar notas',
+          hint: 'Flujos por similitud local',
+          icon: <Layers size={17} />,
+          run: applyClusters,
+        },
+        {
           id: 'kanban',
           label: 'Kanban vivo',
           hint: 'Columnas, tarjetas y sprint',
           icon: <Table2 size={17} />,
           run: () => insertItems(buildKanban({ x: center.x - 480, y: center.y - 240 })),
+        },
+        {
+          id: 'kanbanize',
+          label: 'Agrupar en Kanban',
+          hint: 'Mueve tus notas a columnas',
+          icon: <Frame size={17} />,
+          run: kanbanize,
+        },
+        {
+          id: 'table-filter',
+          label: 'Filtrar tabla',
+          hint: 'Busca filas dentro de una tabla',
+          icon: <Table2 size={17} />,
+          run: filterTable,
         },
         {
           id: 'duel',
@@ -828,7 +1224,7 @@ export function V2Tools({ board, onClose }: { board: Board; onClose: () => void 
       ],
     },
     {
-      title: 'Aula y personas',
+      title: t('lab.groupClass', undefined, locale),
       tools: [
         {
           id: 'capture',
@@ -865,6 +1261,13 @@ export function V2Tools({ board, onClose }: { board: Board; onClose: () => void 
           run: () => setDialog('roulette'),
         },
         {
+          id: 'poll',
+          label: 'Votación QR',
+          hint: 'Escanea, vota y ve resultados',
+          icon: <QrCode size={17} />,
+          run: () => setDialog('poll'),
+        },
+        {
           id: 'sidekick',
           label: 'Sidekick local / IA',
           hint: 'Esquema o modelo BYOK',
@@ -882,18 +1285,9 @@ export function V2Tools({ board, onClose }: { board: Board; onClose: () => void 
         {
           id: 'exam',
           label: 'Modo examen',
-          hint: 'Bloquea la pizarra y presenta',
+          hint: 'Hojas por alumno y lienzo bloqueado',
           icon: <Presentation size={17} />,
-          run: () => {
-            const store = useLienzo.getState();
-            if (!board.locked) {
-              store.toggleBoardLock();
-              store.startPresentation();
-            } else {
-              store.toggleBoardLock();
-              store.exitPresentation();
-            }
-          },
+          run: () => setDialog('exam'),
         },
         {
           id: 'accessible',
@@ -906,7 +1300,7 @@ export function V2Tools({ board, onClose }: { board: Board; onClose: () => void 
       ],
     },
     {
-      title: 'Sesión y documentos',
+      title: t('lab.groupSession', undefined, locale),
       tools: [
         {
           id: 'replay',
@@ -926,9 +1320,12 @@ export function V2Tools({ board, onClose }: { board: Board; onClose: () => void 
         {
           id: 'doc',
           label: 'Doc ↔ pizarra',
-          hint: 'Vista de documento e impresión',
+          hint: 'Edita el documento y vuelve al lienzo',
           icon: <FileText size={17} />,
-          run: () => setDialog('doc'),
+          run: () => {
+            setDocText(boardToMarkdown(board));
+            setDialog('doc');
+          },
         },
         {
           id: 'chronology',
@@ -948,7 +1345,7 @@ export function V2Tools({ board, onClose }: { board: Board; onClose: () => void 
       ],
     },
     {
-      title: 'Apariencia',
+      title: t('lab.groupLook', undefined, locale),
       tools: [
         {
           id: 'texture-paper',
@@ -1005,6 +1402,49 @@ export function V2Tools({ board, onClose }: { board: Board; onClose: () => void 
             showToast('Letra manuscrita aplicada.', 'success');
           },
         },
+        {
+          id: 'language',
+          label: t('lab.language', undefined, locale),
+          hint: t('lab.languageHint', undefined, locale),
+          icon: <Languages size={17} />,
+          run: () => setDialog('language'),
+        },
+        {
+          id: 'spatial',
+          label: 'Sonido espacial',
+          hint: 'Oye la tiza del compañero',
+          icon: <Podcast size={17} />,
+          active: spatial,
+          run: () => {
+            const next = !spatial;
+            setSpatial(next);
+            localStorage.setItem('lienzo:spatial:v1', next ? 'on' : 'off');
+            showToast(
+              next
+                ? 'Sonido espacial activado: oirás a la sala según su posición.'
+                : 'Sonido espacial desactivado.',
+              'info',
+            );
+          },
+        },
+        {
+          id: 'magnetic',
+          label: 'Cursor magnético',
+          hint: 'Anillo suave para manos con temblor',
+          icon: <MousePointer2 size={17} />,
+          active: magnetic,
+          run: () => {
+            const next = !magnetic;
+            setMagnetic(next);
+            localStorage.setItem('lienzo:magnetic:v1', next ? 'on' : 'off');
+            document.documentElement.classList.toggle('a11y-magnetic', next);
+            window.dispatchEvent(new CustomEvent('tiza:magnetic', { detail: next }));
+            showToast(
+              next ? 'Cursor magnético activado.' : 'Cursor magnético desactivado.',
+              'info',
+            );
+          },
+        },
       ],
     },
   ];
@@ -1013,14 +1453,14 @@ export function V2Tools({ board, onClose }: { board: Board; onClose: () => void 
     <aside className="v2-panel" aria-label="Laboratorio v2">
       <header>
         <span>
-          <Sparkles size={15} /> Laboratorio
+          <Sparkles size={15} /> {t('lab.title', undefined, locale)}
         </span>
         <button type="button" className="icon-btn" onClick={onClose} aria-label="Cerrar laboratorio">
           <X size={15} />
         </button>
       </header>
       <p className="v2-note">
-        Herramientas locales de la fase v2.0: datos, aula, sesión y accesibilidad.
+        {t('lab.note', undefined, locale)}
       </p>
       {status ? <p className="v2-status">{status}</p> : null}
       <div className="v2-groups">
@@ -1056,6 +1496,11 @@ export function V2Tools({ board, onClose }: { board: Board; onClose: () => void 
                 {dialog === 'assets' && 'Galería de assets'}
                 {dialog === 'wireframe' && 'Kit de wireframe'}
                 {dialog === 'roulette' && 'Dado y ruleta'}
+                {dialog === 'poll' && 'Votación por QR'}
+                {dialog === 'office' && 'Office y CSV a objetos'}
+                {dialog === 'plugins' && 'Plugins declarativos JSON'}
+                {dialog === 'language' && t('lab.language', undefined, locale)}
+                {dialog === 'exam' && 'Modo examen'}
                 {dialog === 'sidekick' && 'Sidekick local / IA BYOK'}
                 {dialog === 'replay' && 'Replay de sesión'}
                 {dialog === 'compare' && 'Comparador de tableros'}
@@ -1137,6 +1582,210 @@ export function V2Tools({ board, onClose }: { board: Board; onClose: () => void 
               </div>
             ) : null}
 
+            {dialog === 'office' ? (
+              <div className="v2-body">
+                <p className="v2-note">
+                  Convierte .docx en secciones de texto, .pptx en marcos con sus
+                  diapositivas y .csv/.tsv en una tabla editable. Todo se procesa en tu
+                  dispositivo.
+                </p>
+                <label className="field-label">
+                  <span>Documento</span>
+                  <input
+                    className="text-input"
+                    type="file"
+                    accept=".docx,.pptx,.csv,.tsv,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/csv"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) void importOffice(file);
+                    }}
+                  />
+                </label>
+                <p className="v2-note">
+                  Los formatos antiguos .doc y .ppt no son ZIP/XML; guárdalos como
+                  .docx o .pptx antes de convertirlos.
+                </p>
+              </div>
+            ) : null}
+
+            {dialog === 'plugins' ? (
+              <div className="v2-body">
+                <p className="v2-note">
+                  Los plugins son JSON declarativos: notas, textos, formas, marcos y
+                  stickers. No ejecutan código y se guardan en este dispositivo.
+                </p>
+                <label className="field-label">
+                  <span>Plugin JSON</span>
+                  <textarea
+                    className="text-input"
+                    rows={10}
+                    value={pluginDraft}
+                    onChange={(event) => setPluginDraft(event.target.value)}
+                    spellCheck={false}
+                  />
+                </label>
+                <div className="v2-row">
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => {
+                      try {
+                        const plugin = installPlugin(JSON.parse(pluginDraft));
+                        setPlugins(loadPlugins());
+                        showToast(`Plugin "${plugin.name}" instalado.`, 'success');
+                      } catch (error) {
+                        showToast(
+                          error instanceof Error ? error.message : 'Plugin no válido.',
+                          'error',
+                        );
+                      }
+                    }}
+                  >
+                    <Check size={14} /> Instalar
+                  </button>
+                </div>
+                <h5>Instalados · {plugins.length}</h5>
+                {plugins.length === 0 ? (
+                  <p className="v2-note">Todavía no hay plugins en este dispositivo.</p>
+                ) : null}
+                {plugins.map((plugin) => (
+                  <div key={plugin.id} className="chronology">
+                    <div>
+                      <strong>{plugin.name}</strong>
+                      <span>{plugin.items.length} piezas</span>
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        onClick={() => insertPlugin(plugin)}
+                        title="Insertar en el lienzo"
+                      >
+                        <Blocks size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        onClick={() => {
+                          removePlugin(plugin.id);
+                          setPlugins(loadPlugins());
+                        }}
+                        title="Eliminar plugin"
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            {dialog === 'language' ? (
+              <div className="v2-body">
+                <p className="v2-note">
+                  El español es el idioma base. Los catálogos comunitarios se guardan
+                  en este dispositivo y pueden sobrescribir cualquier clave.
+                </p>
+                <div className="v2-row">
+                  {(['es', 'en'] as Locale[]).map((code) => (
+                    <button
+                      key={code}
+                      type="button"
+                      className={locale === code ? 'is-active' : ''}
+                      onClick={() => {
+                        setLocale(code);
+                        setLocaleState(code);
+                      }}
+                    >
+                      {code === 'es' ? t('lab.localeEs') : t('lab.localeEn')}
+                    </button>
+                  ))}
+                </div>
+                <p className="v2-note">
+                  {t('lab.preview', { name: userName, count: peers.length + 1 }, locale)}
+                </p>
+                <div className="v2-row">
+                  <button
+                    type="button"
+                    className="btn btn-soft"
+                    onClick={() => {
+                      const blob = new Blob([catalogTemplate()], {
+                        type: 'application/json;charset=utf-8',
+                      });
+                      const url = URL.createObjectURL(blob);
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = 'tiza-i18n.json';
+                      link.click();
+                      setTimeout(() => URL.revokeObjectURL(url), 1200);
+                    }}
+                  >
+                    <Download size={14} /> {t('lab.exportCatalog', undefined, locale)}
+                  </button>
+                  <label className="btn btn-primary">
+                    <FileText size={14} /> {t('lab.importCatalog', undefined, locale)}
+                    <input
+                      type="file"
+                      accept=".json,application/json"
+                      hidden
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (!file) return;
+                        void file.text().then((raw) => {
+                          try {
+                            const count = installCatalog(raw);
+                            setLocaleState(getLocale());
+                            bumpCatalog((value) => value + 1);
+                            showToast(
+                              t('lab.catalogInstalled', { count }, locale),
+                              'success',
+                            );
+                          } catch {
+                            showToast(t('lab.catalogError', undefined, locale), 'error');
+                          }
+                        });
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
+            ) : null}
+
+            {dialog === 'exam' ? (
+              <div className="v2-body">
+                <p className="v2-note">
+                  Crea una hoja por alumno, bloquea la pizarra y entra en presentación.
+                  Después puedes exportar el tablero a PDF, una página por marco.
+                </p>
+                <label className="field-label">
+                  <span>Número de alumnos</span>
+                  <input
+                    className="text-input"
+                    type="number"
+                    min={1}
+                    max={12}
+                    value={examCount}
+                    onChange={(event) => setExamCount(Number(event.target.value))}
+                  />
+                </label>
+                <div className="v2-row">
+                  <button type="button" className="btn btn-primary" onClick={createExam}>
+                    <Presentation size={14} /> Crear hojas y presentar
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-soft"
+                    onClick={() => {
+                      const store = useLienzo.getState();
+                      if (board.locked) store.toggleBoardLock();
+                      store.exitPresentation();
+                      showToast('Modo examen desactivado.', 'info');
+                    }}
+                  >
+                    <Square size={13} /> Salir del examen
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
             {dialog === 'assets' ? (
               <div className="v2-body">
                 {ASSET_LIBRARY.map((group) => (
@@ -1199,6 +1848,58 @@ export function V2Tools({ board, onClose }: { board: Board; onClose: () => void 
                   </button>
                 </div>
                 <p className="v2-note">Participantes: {[userName, ...peers.map((p) => p.name)].join(', ')}</p>
+              </div>
+            ) : null}
+
+            {dialog === 'poll' ? (
+              <div className="v2-body">
+                <label className="field-label">
+                  <span>Opciones, una por línea</span>
+                  <textarea
+                    className="text-input"
+                    rows={5}
+                    value={pollText}
+                    onChange={(event) => setPollText(event.target.value)}
+                  />
+                </label>
+                <div className="v2-row">
+                  <button type="button" className="btn btn-primary" onClick={() => void createPoll()}>
+                    <QrCode size={14} /> Crear votación y QR
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-soft"
+                    onClick={() => {
+                      useLienzo.getState().setUi('share', true);
+                      onClose();
+                    }}
+                  >
+                    <Users size={14} /> Abrir sala
+                  </button>
+                </div>
+                {pollQr ? (
+                  <div className="v2-center">
+                    <img className="poll-qr" src={pollQr} alt="QR para unirse y votar" />
+                    <p className="v2-note">
+                      Escanea con el móvil en la misma red, abre Sala y pulsa 👍 en las
+                      notas. Los resultados se actualizan en vivo.
+                    </p>
+                  </div>
+                ) : pollIds.length > 0 ? (
+                  <p className="v2-note">
+                    La sala no está activa todavía. Comparte la pizarra para generar el QR.
+                  </p>
+                ) : null}
+                {pollResults.length > 0 ? (
+                  <div className="chronology">
+                    {pollResults.map((result) => (
+                      <div key={result.id}>
+                        <strong>{result.label}</strong>
+                        <span>{result.votes} votos</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             ) : null}
 
@@ -1285,6 +1986,14 @@ export function V2Tools({ board, onClose }: { board: Board; onClose: () => void 
                   <button type="button" className="btn btn-soft" onClick={exportReplay} disabled={snapshots.length === 0}>
                     <Download size={13} /> Exportar
                   </button>
+                  <button
+                    type="button"
+                    className="btn btn-soft"
+                    onClick={() => void exportReplayVideo()}
+                    disabled={snapshots.length === 0 || exporting}
+                  >
+                    <Clapperboard size={13} /> {exporting ? 'Renderizando…' : 'Vídeo WebM'}
+                  </button>
                   <button type="button" className="btn btn-soft" onClick={restoreReplay} disabled={!activeSnapshot}>
                     <RotateCcw size={13} /> Aplicar
                   </button>
@@ -1307,6 +2016,26 @@ export function V2Tools({ board, onClose }: { board: Board; onClose: () => void 
                 ) : (
                   <p className="v2-note">Pulsa Grabar sesión y trabaja: cada 2 segundos se guarda un fotograma.</p>
                 )}
+                <div className="v2-row">
+                  <span className="v2-note">Vista por autor:</span>
+                  <button
+                    type="button"
+                    className={authorFilter === null ? 'is-active' : ''}
+                    onClick={() => setAuthorFilter(null)}
+                  >
+                    Todos
+                  </button>
+                  {chronology.map(([author]) => (
+                    <button
+                      key={author}
+                      type="button"
+                      className={authorFilter === author ? 'is-active' : ''}
+                      onClick={() => setAuthorFilter(author)}
+                    >
+                      {author}
+                    </button>
+                  ))}
+                </div>
                 <div className="heatmap">
                   {heatCells.map((cell) => (
                     <span
@@ -1371,10 +2100,42 @@ export function V2Tools({ board, onClose }: { board: Board; onClose: () => void 
             {dialog === 'doc' ? (
               <div className="v2-body">
                 <p className="v2-note">
-                  Vista de documento del tablero con la jerarquía de marcos, notas y tablas.
+                  Edita el documento y conviértelo de nuevo en textos del lienzo. Los
+                  encabezados y las listas conservan su jerarquía.
                 </p>
-                <pre className="doc-preview">{boardToMarkdown(board)}</pre>
+                <textarea
+                  className="text-input doc-editor"
+                  rows={14}
+                  value={docText}
+                  onChange={(event) => setDocText(event.target.value)}
+                  spellCheck={false}
+                />
                 <div className="v2-row">
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => {
+                      const items = markdownToItems(docText, {
+                        x: center.x - 320,
+                        y: center.y - 240,
+                      });
+                      if (items.length === 0) {
+                        showToast('El documento está vacío.', 'info');
+                        return;
+                      }
+                      insertItems(items);
+                      setDialog(null);
+                    }}
+                  >
+                    <FileText size={14} /> Aplicar al lienzo
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-soft"
+                    onClick={() => setDocText(boardToMarkdown(board))}
+                  >
+                    <RotateCcw size={14} /> Actualizar desde pizarra
+                  </button>
                   <button
                     type="button"
                     className="btn btn-soft"
@@ -1392,7 +2153,7 @@ export function V2Tools({ board, onClose }: { board: Board; onClose: () => void 
                   >
                     <Download size={14} /> Texto plano
                   </button>
-                  <button type="button" className="btn btn-primary" onClick={() => window.print()}>
+                  <button type="button" className="btn btn-soft" onClick={() => window.print()}>
                     <FileText size={14} /> Imprimir
                   </button>
                 </div>

@@ -28,6 +28,15 @@ const MIME = {
 const MAX_BOARD_BYTES = 24 * 1024 * 1024;
 const MAX_CLIENTS_PER_ROOM = 40;
 
+function isLoopback(request) {
+  const address = request.socket?.remoteAddress ?? '';
+  return (
+    address === '127.0.0.1' ||
+    address === '::1' ||
+    address === '::ffff:127.0.0.1'
+  );
+}
+
 function now() {
   return Date.now();
 }
@@ -173,7 +182,7 @@ export async function startCollabServer({
     const lan = lanAddresses(port);
     const cors = {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, HEAD, PUT, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, HEAD, POST, PUT, OPTIONS',
       'Access-Control-Allow-Headers':
         'Content-Type, x-chunk-index, x-chunk-total, x-file-mime',
       'Cache-Control': 'no-store',
@@ -211,6 +220,63 @@ export async function startCollabServer({
           })),
         ),
       );
+      return;
+    }
+    const opsMatch = pathname.match(/^\/api\/boards\/([A-Za-z0-9_-]+)\/ops$/);
+    if (opsMatch) {
+      if (request.method !== 'POST') {
+        response.writeHead(405, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ error: 'method_not_allowed' }));
+        return;
+      }
+      if (!isLoopback(request)) {
+        response.writeHead(403, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ error: 'loopback_only' }));
+        return;
+      }
+      try {
+        const body = JSON.parse((await readBody(request)).toString('utf8'));
+        if (!Array.isArray(body?.ops) || body.ops.length > 500) {
+          response.writeHead(400, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+          response.end(JSON.stringify({ error: 'invalid_ops' }));
+          return;
+        }
+        const boardId = opsMatch[1];
+        const room = rooms.get(boardId);
+        let board = room?.board ?? null;
+        if (!board && dataDir) {
+          try {
+            const raw = await fs.readFile(path.join(dataDir, `${boardId}.json`), 'utf8');
+            const parsed = JSON.parse(raw);
+            if (isBoard(parsed)) board = parsed;
+          } catch {
+            // No persisted board.
+          }
+        }
+        if (!board) {
+          response.writeHead(404, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+          response.end(JSON.stringify({ error: 'not_found' }));
+          return;
+        }
+        const updated = applyOps(board, body.ops);
+        if (room) {
+          room.board = updated;
+          broadcast(room, { type: 'ops', ops: body.ops, from: 'mcp' });
+          persist(room);
+        } else if (dataDir) {
+          await atomicWrite(
+            path.join(dataDir, `${boardId}.json`),
+            JSON.stringify(updated),
+          );
+        }
+        response.writeHead(200, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+        response.end(
+          JSON.stringify({ ok: true, items: updated.items.length, updatedAt: updated.updatedAt }),
+        );
+      } catch (error) {
+        response.writeHead(400, { ...cors, 'Content-Type': 'application/json; charset=utf-8' });
+        response.end(JSON.stringify({ error: error.message ?? 'invalid_request' }));
+      }
       return;
     }
     const boardMatch = pathname.match(/^\/api\/boards\/([A-Za-z0-9_-]+)$/);

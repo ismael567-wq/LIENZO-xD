@@ -45,6 +45,7 @@ import {
 } from '../lib/theme';
 import { createBoard, createWelcomeBoard, DEFAULT_BOARD_NAME } from '../lib/templates';
 import { duplicateItems, newSticky } from '../lib/factory';
+import { playSound } from '../lib/sound';
 import {
   loadBoards,
   loadFolders,
@@ -105,6 +106,8 @@ interface LienzoState {
   boards: Board[];
   folders: string[];
   boardId: string | null;
+  /** Ruta de tableros visitados (sub-tableros y portales). */
+  trail: string[];
   tool: Tool;
   shapeKind: ShapeKind;
   viewport: Viewport;
@@ -404,6 +407,7 @@ function savePieces(pieces: Piece[]): void {
 
 let collabClient: CollabClient | null = null;
 let collabUnsubscribe: (() => void) | null = null;
+let lastRemoteSoundAt = 0;
 
 export const useLienzo = create<LienzoState>()((set, get) => {
   const mutateBoard = (
@@ -435,6 +439,7 @@ export const useLienzo = create<LienzoState>()((set, get) => {
     boards: [],
     folders: [],
     boardId: null,
+    trail: [],
     tool: 'select',
     shapeKind: 'rect',
     viewport: { x: 0, y: 0, zoom: 1 },
@@ -585,8 +590,18 @@ export const useLienzo = create<LienzoState>()((set, get) => {
       const board = get().boards.find((candidate) => candidate.id === id);
       if (!board || board.deletedAt) return;
       if (get().collab.status !== 'off') get().disconnectCollab();
+      const currentId = get().boardId;
+      const currentTrail = get().trail;
+      const seen = currentTrail.indexOf(id);
+      const trail =
+        seen >= 0
+          ? currentTrail.slice(0, seen)
+          : currentId && currentId !== id
+            ? [...currentTrail, currentId]
+            : currentTrail;
       set({
         boardId: id,
+        trail,
         selected: [],
         editingId: null,
         tool: 'select',
@@ -614,6 +629,7 @@ export const useLienzo = create<LienzoState>()((set, get) => {
       if (get().collab.status !== 'off') get().disconnectCollab();
       set({
         boardId: null,
+        trail: [],
         selected: [],
         editingId: null,
         tool: 'select',
@@ -2174,6 +2190,7 @@ export const useLienzo = create<LienzoState>()((set, get) => {
       let name = board.name;
       let background = board.background;
       let meta: Partial<Board> = {};
+      const added: BoardItem[] = [];
       for (const op of ops) {
         if (op.kind === 'upsert') {
           const index = items.findIndex((item) => item.id === op.item.id);
@@ -2181,6 +2198,7 @@ export const useLienzo = create<LienzoState>()((set, get) => {
             items[index] = op.item;
           } else {
             items.push(op.item);
+            added.push(op.item);
           }
         } else if (op.kind === 'delete') {
           items = items.filter((item) => item.id !== op.id);
@@ -2214,6 +2232,18 @@ export const useLienzo = create<LienzoState>()((set, get) => {
         background,
         updatedAt: Date.now(),
       };
+      if (added.length > 0) {
+        const spatial =
+          typeof localStorage !== 'undefined' &&
+          localStorage.getItem('lienzo:spatial:v1') === 'on';
+        if (spatial && Date.now() - lastRemoteSoundAt > 220) {
+          lastRemoteSoundAt = Date.now();
+          const source = added[0];
+          const width = Math.max(1, state.stageSize.w);
+          const pan = ((source.x - state.viewport.x) * state.viewport.zoom) / width;
+          playSound('tap', Math.max(-1, Math.min(1, pan * 2 - 1)));
+        }
+      }
       set({
         boards: state.boards.map((candidate) =>
           candidate.id === board.id ? nextBoard : candidate,

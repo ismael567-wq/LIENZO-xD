@@ -19,6 +19,7 @@ import { applyTheme, resolveTheme, watchSystemTheme } from './lib/theme';
 import { BoardSearch } from './components/BoardSearch';
 import { HistoryDialog } from './components/HistoryDialog';
 import { FocusTimer } from './components/FocusTimer';
+import { MagneticCursor } from './components/MagneticCursor';
 
 function LoadingScreen() {
   return (
@@ -108,6 +109,7 @@ export default function App() {
       <AboutDialog />
       <OptionsDialog />
       <Toast />
+      <MagneticCursor />
     </div>
   );
 }
